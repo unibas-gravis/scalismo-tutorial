@@ -1,0 +1,1 @@
+java -jar c:\Users\Luethi\coursier\coursier  launch -r https://dl.bintray.com/unibas-gravis/maven org.scalameta:mdoc_2.12:1.1.1 ch.unibas.cs.gravis:scalismo-ui_2.12:0.12.1
