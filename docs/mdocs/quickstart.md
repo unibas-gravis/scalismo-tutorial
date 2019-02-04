@@ -357,6 +357,6 @@ regularization weight, we typically need to sample less points from the surface.
 ```
 From this point we use the procedure described above to work with the registration result.
 
-```scala mdoc
+```scala mdoc:invisible
   ui.close()
 ```

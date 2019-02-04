@@ -20,6 +20,11 @@ libraryDependencies  ++= Seq(
 lazy val root = (project in file("."))
 
 lazy val docs = project       // new documentation project
+  .in(file("myproject-docs"))
+  .settings(
+    mdocIn := new java.io.File("docs/mdocs/"),
+    mdocOut := new java.io.File("docs/")
+  )
   .dependsOn(root)
   .enablePlugins(MdocPlugin)
  
