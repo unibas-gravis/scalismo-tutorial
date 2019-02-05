@@ -2,6 +2,14 @@
 
 The goal in this tutorial is to present the most important data structures, as well as the visualization capabilities of Scalismo.
 
+##### Related resources
+
+The following resources from our [online course](https://www.futurelearn.com/courses/statistical-shape-modelling) may provide
+some helpful context for this tutorial:
+
+- What is Scalismo [(Video)](https://www.futurelearn.com/courses/statistical-shape-modelling/3/steps/250314)  
+
+
 ## Initializing the system
 
 Before we start, we need to initialize Scalismo by calling:
