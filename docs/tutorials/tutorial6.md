@@ -7,13 +7,13 @@ The goal in this tutorial is to learn how to build a Statistical Shape Model fro
 The following resources from our [online course](https://www.futurelearn.com/courses/statistical-shape-modelling) may provide
 some helpful context for this tutorial:
 
-- Learning a model from example data [(Video)](https://www.futurelearn.com/courses/statistical-shape-modelling/3/steps/250329)  
+- Learning a model from example data [(Video)](https://www.futurelearn.com/courses/statistical-shape-modelling/3/steps/250329)
 
 ##### Preparation
 
-As in the previous tutorials, we start by importing some commonly used objects and initializing the system. 
+As in the previous tutorials, we start by importing some commonly used objects and initializing the system.
 
-```scala mdoc:silent
+```scala
 import scalismo.geometry._
 import scalismo.common._
 import scalismo.ui.api._
@@ -33,7 +33,7 @@ val ui = ScalismoUI()
 
 Let us load (and visualize )a set of face meshes based on which we would like to model shape variation:
 
-```scala mdoc:silent
+```scala
 val dsGroup = ui.createGroup("datasets")
 
 val meshFiles = new java.io.File("datasets/nonAlignedFaces/").listFiles
@@ -56,22 +56,23 @@ We notice two things about this dataset:
 
 In order to study shape variations, we need to eliminate variations due to relative spatial displacement of the shapes (rotation and translation).
 This can be achieved by selecting one of the meshes as a reference, wo which the rest of the datasets are aligned.
-In this example here, we simply take the first mesh in the list as a reference and align all the others. 
+In this example here, we simply take the first mesh in the list as a reference and align all the others.
 
-```scala mdoc:silent
+```scala
 val reference = meshes.head
 val toAlign : IndexedSeq[TriangleMesh[_3D]] = meshes.tail
 ```
 
-Given that our dataset is in correspondence, we can specify a set of point identifiers that we use to locate corresponding points on the reference mesh and on each of the meshes to be aligned to the reference. 
+Given that our dataset is in correspondence, we can specify a set of point identifiers that we use to locate corresponding points on the reference mesh and on each of the meshes to be aligned to the reference.
 
-```scala mdoc:silent
+```scala
 val pointIds = IndexedSeq(2214, 6341, 10008, 14129, 8156, 47775)
 val refLandmarks = pointIds.map{id => Landmark(s"L_$id", reference.pointSet.point(PointId(id))) }
 ```
+
 After locating the landmark positions on the reference, we iterate on each remaining data item, identify the corresponding landmark points and then rigidly align the mesh to the reference.
 
-```scala mdoc:silent
+```scala
 val alignedMeshes = toAlign.map { mesh =>    
      val landmarks = pointIds.map{id => Landmark("L_"+id, mesh.pointSet.point(PointId(id)))}
      val rigidTrans = LandmarkRegistration.rigid3DLandmarkRegistration(landmarks, refLandmarks, center = Point(0,0,0))
@@ -87,7 +88,7 @@ Now, the IndexedSeq of triangle meshes *alignedMeshes* contains the faces that a
 
 Now that we have our set of meshes that are in correspondence and aligned to our reference, we can turn the dataset into a set of deformation fields, as we saw previously:
 
-```scala mdoc:silent 
+```scala
 val defFields = alignedMeshes.map{ m => 
     val deformationVectors = reference.pointSet.pointIds.map{ id : PointId =>  
     m.pointSet.point(id) - reference.pointSet.point(id)
@@ -99,7 +100,7 @@ val defFields = alignedMeshes.map{ m =>
 
 Finally, we can compute a ```DiscreteGaussianProcess``` from the data.
 
-```scala mdoc:silent
+```scala
 val interpolator = NearestNeighborInterpolator[_3D, Vector[_3D]]()
 val continuousFields = defFields.map(f => f.interpolate(interpolator) )
 val gp = DiscreteLowRankGaussianProcess.createUsingPCA(reference.pointSet, continuousFields)
@@ -113,13 +114,13 @@ val gp = DiscreteLowRankGaussianProcess.createUsingPCA(reference.pointSet, conti
 
 By combining this Gaussian process over deformation fields with the reference mesh, we obtain a Statistical Mesh Model:
 
-```scala mdoc:silent
+```scala
 val model = StatisticalMeshModel(reference, gp.interpolate(interpolator))
 ```
 
 Notice that when we visualize this mesh model in Scalismo-ui, it generates a GaussianProcessTransformation and the reference mesh in the Scene Tree.
 
-```scala mdoc:silent
+```scala
 val modelGroup = ui.createGroup("model")
 val ssmView = ui.show(modelGroup, model, "model")
 ```
@@ -129,7 +130,7 @@ val ssmView = ui.show(modelGroup, model, "model")
 Performing all the operations above every time we want to build a PCA model from a set of files containing meshes in correspondence can be tedious. Therefore, Scalismo provides a handier implementation via the *DataCollection* data structure:
 
 
-```scala mdoc:silent
+```scala
 val dc = DataCollection.fromMeshDirectory(reference, new java.io.File("datasets/nonAlignedFaces/"))._1.get
 ```
 
@@ -138,23 +139,24 @@ The *DataCollection* class in Scalismo allows grouping together a dataset of mes
 In the code above, we created a *DataCollection* from all the meshes in correspondence that are stored in the indicated directory.
 
 When creating the collection, we need to indicate the reference mesh.
-In the case of *dc*, we chose the reference to be the *reference* mesh we previously defined: 
+In the case of *dc*, we chose the reference to be the *reference* mesh we previously defined:
 
-```scala mdoc:silent
+```scala
 dc.reference == reference
 ```
 
 In addition to the reference, the data collection holds for each data item the transformation to apply to the reference to obtain the item:
 
-```scala mdoc:silent
+```scala
 val item0 :DataItem[_3D] = dc.dataItems(0)
 val transform : Transformation[_3D] = item0.transformation
 ```
+
 Note that this transformation simply consists in moving each reference point by its associated deformation vector according to the vector field deforming the reference mesh into the item mesh.
 
-Now that we have our data collection, we can build a shape model as follows: 
+Now that we have our data collection, we can build a shape model as follows:
 
-```scala mdoc:silent
+```scala
 val modelNonAligned = StatisticalMeshModel.createUsingPCA(dc).get
 
 val modelGroup2 = ui.createGroup("modelGroup2")
@@ -169,8 +171,3 @@ Notice that, in this case, we built a model from **misaligned** meshes in corres
 
 ##### Exercise: using the GUI, change the coefficient of the first principal component of the *nonAligned* shape model. What is the main shape variation encoded in the model?
 
-
-
-```scala mdoc:invisible
-ui.close();
-```
