@@ -9,7 +9,7 @@ Each tutorial is accompanied by a short video, which explains the theoretical ba
 
 * [Tutorial 1](tutorials/tutorial1.html): Hello Scalismo
 * [Tutorial 2](tutorials/tutorial2.html): Rigid alignment
-* [Tutorial 3](tutorials/coming-soon.html): From meshes to deformation fields
+* [Tutorial 3](tutorials/tutorial3.html): From meshes to deformation fields
 * [Tutorial 4](tutorials/coming-soon.html): Gaussian processes and Point Distribution Models
 * [Tutorial 5](tutorials/coming-soon.html): Gaussian processes, sampling and marginalization
 * [Tutorial 6](tutorials/coming-soon.html): Building a shape model from data
