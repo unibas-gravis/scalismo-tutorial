@@ -10,7 +10,8 @@ some helpful context for this tutorial:
 - Modelling Shape Deformations [(Video)](https://www.futurelearn.com/courses/statistical-shape-modelling/3/steps/250326)  
 
 
-#### Preparation
+##### Preparation
+
 As in the previous tutorials, we start by importing some commonly used objects and initializing the system. 
 
 ```scala mdoc:silent
