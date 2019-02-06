@@ -15,7 +15,7 @@ Each tutorial is accompanied by a short video, which explains the theoretical ba
 * [Tutorial 6](tutorials/tutorial6.html): Building a shape model from data
 * [Tutorial 7](tutorials/tutorial7.html): Shape modelling with Gaussian processes and kernels
 * [Tutorial 8](tutorials/tutorial8.html): Posterior Shape Models
-* [Tutorial 9](tutorials/coming-soon.html): Shape completion using Gaussian process regression
+* [Tutorial 9](tutorials/tutorial9.html): Shape completion using Gaussian process regression
 * [Tutorial 10](tutorials/coming-soon.html): Iterative Closest Points for rigid alignment
 * [Tutorial 11](tutorials/coming-soon.html): Model fitting with Iterative Closest Points
 * [Tutorial 12](tutorials/coming-soon.html): Active Shape Model fitting
