@@ -13,7 +13,7 @@ Each tutorial is accompanied by a short video, which explains the theoretical ba
 * [Tutorial 4](tutorials/tutorial4.html): Gaussian processes and Point Distribution Models
 * [Tutorial 5](tutorials/tutorial5.html): Gaussian processes, sampling and marginalization
 * [Tutorial 6](tutorials/tutorial6.html): Building a shape model from data
-* [Tutorial 7](tutorials/coming-soon.html): Shape modelling with Gaussian processes and kernels
+* [Tutorial 7](tutorials/tutorial7.html): Shape modelling with Gaussian processes and kernels
 * [Tutorial 8](tutorials/coming-soon.html): Posterior Shape Models
 * [Tutorial 9](tutorials/coming-soon.html): Shape completion using Gaussian process regression
 * [Tutorial 10](tutorials/coming-soon.html): Iterative Closest Points for rigid alignment
