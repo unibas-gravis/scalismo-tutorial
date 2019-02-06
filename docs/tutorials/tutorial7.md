@@ -131,20 +131,14 @@ Now that we have our mean and covariance functions, we can build a Gaussian proc
 
 ```scala
 val gp = GaussianProcess(zeroMean, matrixValuedGaussianKernel)
-// gp: GaussianProcess[_3D, Vector[_3D]] = scalismo.statisticalmodel.GaussianProcess@7c981411
 ```
 
 We can now sample deformations from our Gaussian process **at any desired set of points**. Below we choose the points to be those of the reference mesh:
 
 ```scala
 val sampleGroup = ui.createGroup("samples")
-// sampleGroup: Group = Group(samples)
 val sample = gp.sampleAtPoints(referenceMesh.pointSet)
-// sample: DiscreteField[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]] = <function1>
 ui.show(sampleGroup, sample, "gaussianKernelGP_sample")
-// res2: ShowInScene.ShowInSceneDiscreteFieldOfVectors.View = VectorFieldView(
-//   gaussianKernelGP_sample
-// )
 ```
 
 As you can see, this is now an instance (or a random sample function) from the Gaussian Process evaluated at the points we indicated;
@@ -154,60 +148,8 @@ We can visualize its effect by interpolating the deformation field, which we the
 
 ```scala
 val interpolatedSample = sample.interpolate(NearestNeighborInterpolator())
-// interpolatedSample: Field[_3D, Vector[_3D]] = <function1>
 val deformedMesh = referenceMesh.transform((p : Point[_3D]) => p + interpolatedSample(p))
-// deformedMesh: TriangleMesh[_3D] = TriangleMesh3D(
-//   scalismo.common.UnstructuredPointsDomain3D@b089665f,
-//   TriangleList(
-//     Vector(
-//       TriangleCell(PointId(0), PointId(1), PointId(2)),
-//       TriangleCell(PointId(3), PointId(0), PointId(4)),
-//       TriangleCell(PointId(1), PointId(5), PointId(6)),
-//       TriangleCell(PointId(7), PointId(3), PointId(8)),
-//       TriangleCell(PointId(5), PointId(9), PointId(10)),
-//       TriangleCell(PointId(11), PointId(7), PointId(12)),
-//       TriangleCell(PointId(9), PointId(13), PointId(14)),
-//       TriangleCell(PointId(15), PointId(11), PointId(16)),
-//       TriangleCell(PointId(13), PointId(17), PointId(18)),
-//       TriangleCell(PointId(19), PointId(15), PointId(20)),
-//       TriangleCell(PointId(17), PointId(21), PointId(22)),
-//       TriangleCell(PointId(21), PointId(23), PointId(24)),
-//       TriangleCell(PointId(25), PointId(19), PointId(26)),
-//       TriangleCell(PointId(23), PointId(27), PointId(28)),
-//       TriangleCell(PointId(29), PointId(25), PointId(30)),
-//       TriangleCell(PointId(27), PointId(31), PointId(32)),
-//       TriangleCell(PointId(33), PointId(29), PointId(34)),
-//       TriangleCell(PointId(31), PointId(35), PointId(36)),
-//       TriangleCell(PointId(37), PointId(33), PointId(38)),
-//       TriangleCell(PointId(35), PointId(39), PointId(40)),
-//       TriangleCell(PointId(39), PointId(41), PointId(42)),
-//       TriangleCell(PointId(41), PointId(43), PointId(44)),
-//       TriangleCell(PointId(45), PointId(37), PointId(46)),
-//       TriangleCell(PointId(43), PointId(47), PointId(48)),
-//       TriangleCell(PointId(49), PointId(45), PointId(50)),
-//       TriangleCell(PointId(47), PointId(49), PointId(51)),
-//       TriangleCell(PointId(52), PointId(53), PointId(54)),
-//       TriangleCell(PointId(52), PointId(55), PointId(53)),
-//       TriangleCell(PointId(56), PointId(57), PointId(55)),
-//       TriangleCell(PointId(58), PointId(59), PointId(57)),
-//       TriangleCell(PointId(60), PointId(54), PointId(61)),
-//       TriangleCell(PointId(62), PointId(63), PointId(59)),
-//       TriangleCell(PointId(60), PointId(64), PointId(65)),
-//       TriangleCell(PointId(54), PointId(53), PointId(61)),
-//       TriangleCell(PointId(60), PointId(61), PointId(64)),
-//       TriangleCell(PointId(55), PointId(66), PointId(53)),
-//       TriangleCell(PointId(55), PointId(57), PointId(66)),
-//       TriangleCell(PointId(57), PointId(59), PointId(66)),
-//       TriangleCell(PointId(67), PointId(68), PointId(69)),
-//       TriangleCell(PointId(70), PointId(65), PointId(71)),
-//       TriangleCell(PointId(66), PointId(59), PointId(72)),
-//       TriangleCell(PointId(73), PointId(74), PointId(63)),
-//       TriangleCell(PointId(67), PointId(75), PointId(68)),
-//       TriangleCell(PointId(65), PointId(76), PointId(71)),
-//       TriangleCell(PointId(73), PointId(69), PointId(68)),
-// ...
 ui.show(sampleGroup, deformedMesh, "deformed mesh")
-// res3: ShowInScene.ShowInSceneMesh.View = TriangleMeshView(deformed mesh)
 ```
 
 #### Low-rank approximation
@@ -224,7 +166,6 @@ val lowRankGP = LowRankGaussianProcess.approximateGP(
     UniformMeshSampler3D(referenceMesh, numberOfPoints = 300), 
     numBasisFunctions = 100
     )
-// lowRankGP: LowRankGaussianProcess[_3D, Vector[_3D]] = scalismo.statisticalmodel.LowRankGaussianProcess@5ea601f1
 ```
 
 This call computes a finite-rank approximation of the Gaussian Process using a Nyström approximation.
@@ -274,58 +215,7 @@ In a first step, we get the Gaussian process from the model an interpolate it.
 
 ```scala
 val pcaModel = StatismoIO.readStatismoMeshModel(new java.io.File("datasets/lowresModel.h5")).get
-// pcaModel: StatisticalMeshModel = StatisticalMeshModel(
-//   TriangleMesh3D(
-//     scalismo.common.UnstructuredPointsDomain3D@97ec1b96,
-//     TriangleList(
-//       Vector(
-//         TriangleCell(PointId(0), PointId(1), PointId(2)),
-//         TriangleCell(PointId(0), PointId(3), PointId(1)),
-//         TriangleCell(PointId(4), PointId(5), PointId(3)),
-//         TriangleCell(PointId(6), PointId(7), PointId(5)),
-//         TriangleCell(PointId(8), PointId(2), PointId(9)),
-//         TriangleCell(PointId(10), PointId(11), PointId(7)),
-//         TriangleCell(PointId(8), PointId(12), PointId(13)),
-//         TriangleCell(PointId(2), PointId(1), PointId(9)),
-//         TriangleCell(PointId(8), PointId(9), PointId(12)),
-//         TriangleCell(PointId(3), PointId(14), PointId(1)),
-//         TriangleCell(PointId(3), PointId(5), PointId(14)),
-//         TriangleCell(PointId(5), PointId(7), PointId(14)),
-//         TriangleCell(PointId(15), PointId(16), PointId(17)),
-//         TriangleCell(PointId(18), PointId(13), PointId(19)),
-//         TriangleCell(PointId(14), PointId(7), PointId(20)),
-//         TriangleCell(PointId(21), PointId(22), PointId(11)),
-//         TriangleCell(PointId(15), PointId(23), PointId(16)),
-//         TriangleCell(PointId(13), PointId(24), PointId(19)),
-//         TriangleCell(PointId(21), PointId(17), PointId(16)),
-//         TriangleCell(PointId(13), PointId(12), PointId(24)),
-//         TriangleCell(PointId(1), PointId(14), PointId(25)),
-//         TriangleCell(PointId(26), PointId(18), PointId(27)),
-//         TriangleCell(PointId(1), PointId(25), PointId(28)),
-//         TriangleCell(PointId(14), PointId(20), PointId(25)),
-//         TriangleCell(PointId(20), PointId(7), PointId(29)),
-//         TriangleCell(PointId(7), PointId(11), PointId(29)),
-//         TriangleCell(PointId(11), PointId(22), PointId(30)),
-//         TriangleCell(PointId(21), PointId(16), PointId(22)),
-//         TriangleCell(PointId(23), PointId(31), PointId(16)),
-//         TriangleCell(PointId(18), PointId(19), PointId(27)),
-//         TriangleCell(PointId(11), PointId(30), PointId(29)),
-//         TriangleCell(PointId(19), PointId(24), PointId(32)),
-//         TriangleCell(PointId(33), PointId(9), PointId(34)),
-//         TriangleCell(PointId(9), PointId(1), PointId(34)),
-//         TriangleCell(PointId(1), PointId(28), PointId(34)),
-//         TriangleCell(PointId(25), PointId(20), PointId(35)),
-//         TriangleCell(PointId(9), PointId(33), PointId(12)),
-//         TriangleCell(PointId(12), PointId(33), PointId(36)),
-//         TriangleCell(PointId(20), PointId(29), PointId(35)),
-//         TriangleCell(PointId(22), PointId(16), PointId(37)),
-//         TriangleCell(PointId(32), PointId(24), PointId(38)),
-//         TriangleCell(PointId(24), PointId(39), PointId(38)),
-//         TriangleCell(PointId(35), PointId(29), PointId(40)),
-//         TriangleCell(PointId(29), PointId(30), PointId(41)),
-// ...
 val gpSSM = pcaModel.gp.interpolate(NearestNeighborInterpolator())
-// gpSSM: LowRankGaussianProcess[_3D, Vector[_3D]] = scalismo.statisticalmodel.InterpolatedLowRankGaussianProcess@7dcf5fa5
 ```
 
 We can then access its covariance function, which is a kernel:
@@ -345,7 +235,6 @@ Finally, we build the Gaussian process with the new kernel.
 
 ```scala
 val augmentedGP = GaussianProcess(gpSSM.mean, augmentedCov)
-// augmentedGP: GaussianProcess[_3D, Vector[_3D]] = scalismo.statisticalmodel.GaussianProcess@591073b7
 ```
 
 From here on, we follow the steps outlined above to obtain the *augmented* SSM.
@@ -356,58 +245,7 @@ val lowRankAugmentedGP = LowRankGaussianProcess.approximateGP(
     UniformMeshSampler3D(pcaModel.referenceMesh, numberOfPoints = 300), 
     numBasisFunctions = gpSSM.rank + 50
     )
-// lowRankAugmentedGP: LowRankGaussianProcess[_3D, Vector[_3D]] = scalismo.statisticalmodel.LowRankGaussianProcess@3aa6649e
 val augmentedSSM = StatisticalMeshModel(pcaModel.referenceMesh, lowRankAugmentedGP)
-// augmentedSSM: StatisticalMeshModel = StatisticalMeshModel(
-//   TriangleMesh3D(
-//     scalismo.common.UnstructuredPointsDomain3D@97ec1b96,
-//     TriangleList(
-//       Vector(
-//         TriangleCell(PointId(0), PointId(1), PointId(2)),
-//         TriangleCell(PointId(0), PointId(3), PointId(1)),
-//         TriangleCell(PointId(4), PointId(5), PointId(3)),
-//         TriangleCell(PointId(6), PointId(7), PointId(5)),
-//         TriangleCell(PointId(8), PointId(2), PointId(9)),
-//         TriangleCell(PointId(10), PointId(11), PointId(7)),
-//         TriangleCell(PointId(8), PointId(12), PointId(13)),
-//         TriangleCell(PointId(2), PointId(1), PointId(9)),
-//         TriangleCell(PointId(8), PointId(9), PointId(12)),
-//         TriangleCell(PointId(3), PointId(14), PointId(1)),
-//         TriangleCell(PointId(3), PointId(5), PointId(14)),
-//         TriangleCell(PointId(5), PointId(7), PointId(14)),
-//         TriangleCell(PointId(15), PointId(16), PointId(17)),
-//         TriangleCell(PointId(18), PointId(13), PointId(19)),
-//         TriangleCell(PointId(14), PointId(7), PointId(20)),
-//         TriangleCell(PointId(21), PointId(22), PointId(11)),
-//         TriangleCell(PointId(15), PointId(23), PointId(16)),
-//         TriangleCell(PointId(13), PointId(24), PointId(19)),
-//         TriangleCell(PointId(21), PointId(17), PointId(16)),
-//         TriangleCell(PointId(13), PointId(12), PointId(24)),
-//         TriangleCell(PointId(1), PointId(14), PointId(25)),
-//         TriangleCell(PointId(26), PointId(18), PointId(27)),
-//         TriangleCell(PointId(1), PointId(25), PointId(28)),
-//         TriangleCell(PointId(14), PointId(20), PointId(25)),
-//         TriangleCell(PointId(20), PointId(7), PointId(29)),
-//         TriangleCell(PointId(7), PointId(11), PointId(29)),
-//         TriangleCell(PointId(11), PointId(22), PointId(30)),
-//         TriangleCell(PointId(21), PointId(16), PointId(22)),
-//         TriangleCell(PointId(23), PointId(31), PointId(16)),
-//         TriangleCell(PointId(18), PointId(19), PointId(27)),
-//         TriangleCell(PointId(11), PointId(30), PointId(29)),
-//         TriangleCell(PointId(19), PointId(24), PointId(32)),
-//         TriangleCell(PointId(33), PointId(9), PointId(34)),
-//         TriangleCell(PointId(9), PointId(1), PointId(34)),
-//         TriangleCell(PointId(1), PointId(28), PointId(34)),
-//         TriangleCell(PointId(25), PointId(20), PointId(35)),
-//         TriangleCell(PointId(9), PointId(33), PointId(12)),
-//         TriangleCell(PointId(12), PointId(33), PointId(36)),
-//         TriangleCell(PointId(20), PointId(29), PointId(35)),
-//         TriangleCell(PointId(22), PointId(16), PointId(37)),
-//         TriangleCell(PointId(32), PointId(24), PointId(38)),
-//         TriangleCell(PointId(24), PointId(39), PointId(38)),
-//         TriangleCell(PointId(35), PointId(29), PointId(40)),
-//         TriangleCell(PointId(29), PointId(30), PointId(41)),
-// ...
 ```
 
 #### Changepoint kernel:
@@ -439,22 +277,11 @@ Let's visualize its effect with two different Gaussian Kernels
 
 ```scala
 val gk1 = DiagonalKernel(GaussianKernel[_3D](100.0), 3)
-// gk1: DiagonalKernel[_3D] = IsotropicDiagonalKernel(GaussianKernel(100.0), 3)
 val gk2 = DiagonalKernel(GaussianKernel[_3D](10.0), 3)
-// gk2: DiagonalKernel[_3D] = IsotropicDiagonalKernel(GaussianKernel(10.0), 3)
 val changePointKernel = ChangePointKernel(gk1, gk2)
-// changePointKernel: ChangePointKernel = ChangePointKernel(
-//   IsotropicDiagonalKernel(GaussianKernel(100.0), 3),
-//   IsotropicDiagonalKernel(GaussianKernel(10.0), 3)
-// )
 val gpCP = GaussianProcess(zeroMean, changePointKernel)
-// gpCP: GaussianProcess[_3D, Vector[_3D]] = scalismo.statisticalmodel.GaussianProcess@7c084103
 val sampleCP =  gpCP.sampleAtPoints(referenceMesh.pointSet)
-// sampleCP: DiscreteField[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]] = <function1>
 ui.show(sampleGroup, sampleCP, "ChangePointKernelGP_sample")
-// res5: ShowInScene.ShowInSceneDiscreteFieldOfVectors.View = VectorFieldView(
-//   ChangePointKernelGP_sample
-// )
 ```
 
 As you can see each kernel is now active only on one half of the face.
@@ -481,27 +308,21 @@ case class xMirroredKernel(kernel : PDKernel[_3D]) extends PDKernel[_3D] {
   override def domain = kernel.domain
   override def k(x: Point[_3D], y: Point[_3D]) = kernel(Point(x(0) * -1.0 ,x(1), x(2)), y)
   
-}
+}
 
 def symmetrizeKernel(kernel : PDKernel[_3D]) : MatrixValuedPDKernel[_3D] = {
    val xmirrored = xMirroredKernel(kernel)
    val k1 = DiagonalKernel(kernel, 3) 
    val k2 = DiagonalKernel(xmirrored * -1f, xmirrored, xmirrored)  
    k1 + k2
-}
+}
 
 val symmetrizedGaussian = symmetrizeKernel(GaussianKernel[_3D](100))
-// symmetrizedGaussian: MatrixValuedPDKernel[_3D] = scalismo.kernels.MatrixValuedPDKernel$$anon$5@3824cfb9
 ```
 
 ```scala
 val gpSym = GaussianProcess(zeroMean, symmetrizedGaussian)
-// gpSym: GaussianProcess[_3D, Vector[_3D]] = scalismo.statisticalmodel.GaussianProcess@5db094ec
 val sampleGpSym =  gpSym.sampleAtPoints(referenceMesh.pointSet)
-// sampleGpSym: DiscreteField[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]] = <function1>
 ui.show(sampleGroup, sampleGpSym, "ChangePointKernelGP_sample")
-// res6: ShowInScene.ShowInSceneDiscreteFieldOfVectors.View = VectorFieldView(
-//   ChangePointKernelGP_sample
-// )
 ```
 

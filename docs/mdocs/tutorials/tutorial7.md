@@ -122,13 +122,13 @@ DiagonalKernel(scalarValuedGaussianKernel, 3)
 ##### Building the GP :
 
 Now that we have our mean and covariance functions, we can build a Gaussian process as follows: 
-```scala mdoc
+```scala mdoc:silent
 val gp = GaussianProcess(zeroMean, matrixValuedGaussianKernel)
 ```
 
 We can now sample deformations from our Gaussian process **at any desired set of points**. Below we choose the points to be those of the reference mesh: 
 
-```scala mdoc
+```scala mdoc:silent
 val sampleGroup = ui.createGroup("samples")
 val sample = gp.sampleAtPoints(referenceMesh.pointSet)
 ui.show(sampleGroup, sample, "gaussianKernelGP_sample")
@@ -138,7 +138,7 @@ As you can see, this is now an instance (or a random sample function) from the G
 in this case on the points of the reference mesh.
 
 We can visualize its effect by interpolating the deformation field, which we then use to deform the reference mesh:
-```scala mdoc
+```scala mdoc:silent
 val interpolatedSample = sample.interpolate(NearestNeighborInterpolator())
 val deformedMesh = referenceMesh.transform((p : Point[_3D]) => p + interpolatedSample(p))
 ui.show(sampleGroup, deformedMesh, "deformed mesh")
@@ -150,7 +150,7 @@ from many points we quickly run out of memory.
 
 We can get around this problem by computing a low-rank approximation of the Gaussian process. 
 To obtain such a representation in Scalismo, we can use the *approximateGP* method of the *LowRankGaussianProcess* object.
-```scala mdoc
+```scala mdoc:silent
 val lowRankGP = LowRankGaussianProcess.approximateGP(
     gp, 
     UniformMeshSampler3D(referenceMesh, numberOfPoints = 300), 
@@ -197,7 +197,7 @@ In the following, we show how this can be achieved.
 
 In a first step, we get the Gaussian process from the model an interpolate it. 
 
-```scala mdoc
+```scala mdoc:silent
 val pcaModel = StatismoIO.readStatismoMeshModel(new java.io.File("datasets/lowresModel.h5")).get
 val gpSSM = pcaModel.gp.interpolate(NearestNeighborInterpolator())
 ```
