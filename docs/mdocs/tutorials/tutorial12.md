@@ -27,15 +27,15 @@
     import scalismo.image._	
     import scalismo.ui.api.SimpleAPI._
  	  import scalismo.ui.api.Show
-    
+    import scalismo.common.ScalarArray.implicits._
     scalismo.initialize()
 
     import ch.unibas.cs.gravis.shapemodelling.SimpleAPIWrapperForTut._
 ```
 
-# Model fitting with Iterative Closest Points
+# Finding correspondence in an image
 
-The goal in this tutorial is to learn how to fit a shape model to a target surface using Iterative Closest Points (ICP) and obtain correspondences by doing so.
+The goal in this tutorial is to understand how to use intensity models to find candidate correspondences between a shape model and an image.
 
 In case you would like to learn more about the syntax of the Scala programming language, have a look at the **Scala Cheat Sheet**. This document is accessible under: 
 
@@ -44,234 +44,299 @@ In case you would like to learn more about the syntax of the Scala programming l
 ###### Note: for optimal performance and to keep the memory footprint low, we recommend to restart Scalismo Lab at the beginning of every tutorial.
 
 
-### Meaning of model fitting
+## Correspondence between shapes and images
 
-Let's load a mesh to fit:
-```tut:silent
-val target = MeshIO.readMesh(new File("datasets/target.stl")).get
-show(target,"target")
-```
-and load our model:
+Let's start by loading the image and the model to fit:
 
 ```tut:silent
-val model = StatismoIO.readStatismoMeshModel(new File("datasets/bfm.h5")).get
+val image = ImageIO.read3DScalarImage[Short](new File("datasets/PaolaMRI.vtk")).get
+show(image, "image")
+
+val model = StatismoIO.readStatismoMeshModel(new File("datasets/asmData/model.h5")).get
 show(model, "model")
 ```
 
-As you can see in the 3D scene, we are currently displaying an instance of our model (the mean), that does not resemble our target face. The goal in shape model fitting is therefore to find an instance of our shape model that resembles at best the given target face.
+##### Exercise: go to a slice view (*View -> Perspective -> Y slice*) and zoom in on the model contour (that is the intersection of the model mesh with the slice). How well is the face model fitting to the face of the patient in the MRI?
 
-By doing so, we obtain correspondences between the points of our model and the fit to the target mesh. With such correspondences, many applications become possible such as the reconstruction we performed in a previous tutorial, shape segmentation, anomaly detection and many others.
+As you could hopefully see for yourself, the current model instance, that is the mean, does not follow well the contour of the face depicted in the image and therefore does not **fit** to the image.
 
-### Iterative Closest Points (ICP) and GP regression
+Similar to fitting a shape model to a target mesh, the goal of model fitting to an image is to find an instance of the model that resembles the face in the image. 
 
-In a previous tutorial, we saw how to use ICP in combination with Procrustes analysis in order to find the best rigid transform aligning one mesh to another. In that case the method proceeded as follows: 
+The problem is now however more complicated as we do not have a geometrical representation of the target shape. Instead, the target face shape is indicated in the **intensities** of the image (that is itself defined on a regular grid of points). 
 
-1. Suggest **candidate** correspondences between the mesh to be aligned and the target one, by attributing the closest point on the target mesh as a candidate.
-
-2. Solve for the best rigid transform between the moving mesh and the target mesh using Procrustes analysis.
-
-3. Transform the moving mesh using the retrieved transform and loop to step 1 if the result is not aligned with the target (or if we didn't reach the limit number of iterations)
-
-In that case we noticed that, with every iteration, the quality of the suggested candidate correspondences gradually increased, leading to better and better rigid transformations.
+Hence, the challenge when fitting our model to the image will then be to identify, based on the image intensities, where the points of the model correspond on the image.
 
 
-Here, we will perform exactly the same steps to fit our model to the target while substituting Procrustes analysis with Gaussian process regression.
+##### Exercise: slice through the MRI image and try to locate the tip of the nose. Click a landmark at the position of the tip of the nose in the image, and a landmark on the tip of the nose on the model mean.
 
-#### Fitting a few characteristic points 
-
-To keep things simple, let us first try to find correspondences for a few characteristic points: 
+###### Note: in case clicking landmarks did not work for you, you can add the landmarks programmatically by executing the code below.
 
 ```tut:silent
-val landmarks = LandmarkIO.readLandmarksJson[_3D](new File("datasets/icpLandmarks.json")).get
-addLandmarksTo(landmarks, "model")
+//execute this only if you were unable to click landmarks
+addLandmarksTo(Seq(Landmark("A", model.mean.point(PointId(8277)))), "model")
+addLandmarksTo(Seq(Landmark("A",  Point(114.97f,37.07f,246.09f))), "image")
 ```
-
-Here we loaded a set of easily identifiable points on the model (see in 3D scene), for which we will seek corresponding points on the target mesh.
-
-**Obtaining candidate correspondences**
-
-Let's start by defining our candidate correspondences attribution method and use it on the loaded points:
+Now that you indicated the corresponding point position between the tip of the nose in the model and in the image, we can perform GP regression and retrieve a model instance fitting the indicated correspondence.
 
 ```tut:silent
-def attributeCorrespondences(pts : Seq[Point[_3D]]) : Seq[Point[_3D]] = {
-  pts.map{pt => target.findClosestPoint(pt).point}
-}
+val tipModel = getLandmarksOf("model").get.head.point
+val tipImage = getLandmarksOf("image").get.head.point
+val tipNoseID = model.mean.findClosestPoint(tipModel).id
 
-val candidates = attributeCorrespondences(landmarks.map { l => l.point }) 
-show(candidates, "candidates")
-```
-
-Notice here that the defined function is very similar to the one we defined for the rigid alignment ICP introduced in a previous tutorial. Given a set of points, in this case belonging to an instance of our shape model, we attribute the **closest point** on the target as a candidate correspondence to each one of these points. The returned sequence of points therefore contains the candidate correspondences to the input points *pts*.
-
-When visualizing the attributed candidate correspondences, we see that we get an unsatisfying initialization, where some points such as some corners of the eyes are rather well initialized, while other points such as the tip of the nose are still poorly fit.
-
-
-The first main idea behind ICP is, even though the candidate correspondences are still not perfect, to nevertheless proceed to step 2 and use them in a **GP regression** to find the best model instance explaining the observed deformations.
-
-
-Let us start by visualizing the partial deformation field (or candidate observations) that we will feed to our regression:
-
-
-```tut:silent
-val pointIds = landmarks.map{l => model.mean.findClosestPoint(l.point).id}.toIndexedSeq
-val modelPts = pointIds.map(id => model.referenceMesh.point(id) )
-val domain = UnstructuredPointsDomain[_3D](modelPts.toIndexedSeq)
-val values =  (modelPts.zip(candidates)).map{case (mPt, pPt) => pPt -mPt}
-val field = DiscreteVectorField(domain, values.toIndexedSeq)  
-show(field, "deformations")
-```
-
-Let's now use this candidate partial deformation for regression: 
-```tut:silent
 val littleNoise = NDimensionalNormalDistribution(Vector(0,0,0), SquareMatrix((1f,0,0), (0,1f,0), (0,0,1f)))
+val trainingData = IndexedSeq((tipNoseID, tipImage, littleNoise))
+val posterior = model.posterior( trainingData )
+show(posterior, "posterior")
+```
+###### Note: in case the code above resulted in an Exception "UnsupportedOperationException: empty.head", please make sure to click the landmarks requested in the exercise above.
 
-def fitModel(pointIds: IndexedSeq[PointId],candidateCorresp: Seq[Point[_3D]]) :TriangleMesh = { 
-  val trainingData = (pointIds zip candidateCorresp).map{ case (mId, pPt) => 
-    (mId, pPt, littleNoise)
-  }
-  val posterior = model.posterior(trainingData.toIndexedSeq)
-  posterior.mean
+##### Exercise: check the contour of the displayed posterior model with regard to the image. Any progress in the quality of the fit? How about in the nose region?
+
+Naturally, one should not expect much from a fit based on a single point. However, you hopefully get the idea that if we could perform the same operation for many more points, we would eventually get a decent fit.
+
+For the rest of the tutorial, we will try to perform such a correspondence attribution **automatically**.
+
+### Fitting a single point: the tip of the nose
+
+**Where are the candidate positions for the tip of the nose?**
+
+Given that we have a statistical shape model, we can model the potential positions of the tip of the nose by building a marginal model for this point: 
+
+```tut:silent
+val tipMarginal = model.marginal(IndexedSeq(tipNoseID))
+val candidatePoints = (0 to 100).map(i => tipMarginal.sample.point(PointId(0)))
+show(candidatePoints, "candidates")
+```
+Here we sampled 100 instances out of our tip marginal and displayed 100 different positions that the tip of the nose could assume.  Therefore, when searching for *candidate* positions for the tip of the nose in the image, it is sensible to search for **the best** position among these sampled points.
+
+##### Exercise: display the plotted tip positions together with the image (in the 3D view, use the Z slider to center the slice on the candidate points). Are all points valid candidates to be a tip of a nose on the image?
+
+We will now try to discriminate between the different candidate points and evaluate, based on the image intensities, if each candidate could be valid tip of a nose or not.
+
+For this, we need an **intensity model**.
+
+#### Intensity model
+
+When given a point of interest on the shape, an intensity model indicates the intensity values normally associated with this point in sample images.
+
+##### Exercise: evaluate the intensity at the tip of the nose in the MRI image. You can do this by maintaining the Ctrl key pressed and hovering over the image. The intensity value will then be displayed in the bottom left corner of the viewer window.
+
+Clearly, to build such an intensity model, we need a sample of MRI images where we can locate the tip of the nose.
+
+
+Below we load a dataset of face scans in correspondence:
+
+```tut:silent
+val faces = new File("datasets/asmData/faces/").listFiles.sortBy(_.getName).map{ f => MeshIO.readMesh(f).get }
+show(faces.head ,"face1") // display the first face
+
+remove("image"); remove("posterior") // clean up the scene
+remove("candidates"); remove("model")
+```
+
+and a set of MRI images **fitting** to the loaded faces: 
+
+```tut:silent
+val mri = new File("datasets/asmData/mri/").listFiles.sortBy(_.getName).map{ 
+  f => ImageIO.read3DScalarImage[Short](f).get
 }
 
-val fit = fitModel(pointIds, candidates)
-show(fit, "fit")
+show(mri.head, "mri1") // display the first image
 ```
 
-Here we started by defining our noise that we will use for the regression.
+##### Exercise: go to a slice view and zoom in on the contour of the first face of our dataset. How well is it following the face contour in the corresponding MRI image?
 
-We then defined the *fitModel* function that, when given a sequence of identifiers of model points and their candidate correspondence positions, computes a GP regression based on the resulting deformation field and returns the model instance fitting at best the candidate deformations.
+As you could hopefully verify for yourself, the contour of the first mesh follows nicely the contour of the face depicted in the intensities of the MRI image (except maybe for the ear region which is irrelevant in our case).
 
-
-As we are now limiting our interest to the few characteristic points, let us visualize their new position on the obtained fit: 
-
-
-```tut:silent
-val fittedPoints = pointIds.map(id => fit.point(id))
-show(fittedPoints, "fittedPoints")
-remove("fit"); remove("candidates"); remove("deformations")
-```
-(make the target slightly transparent and color *fittedPoints* to visualize better)
-
-Notice here that the set of points we just displayed are **real corresponding** points to the set of chosen landmarks on the model as they are taken from the model fit using the same point identifiers.
-
-When comparing the positions of these points with regard to the target mesh, we see that they are still far from their corresponding position on the target (corner of eye, tip of nose, etc ..). 
-
-However, when considering the initial position of these points, that are the loaded landmarks positions, one might argue that we are at a better position than where we started.
-
-
-This is where the second important idea of ICP comes again into play: **iteration**.
-If we were now to repeat the same operations above (attribute candidate correspondences and use them to obtain a model fit), this time however starting from the new points positions (*newPoints* in the scene), we could hope to get an even better model fit.
-
-```tut:silent
-def recursion(currentPoints : Seq[Point[_3D]], nbIterations : Int) : Unit= {
-
-  val candidates = attributeCorrespondences(currentPoints)
-  val fit = fitModel(pointIds, candidates)  
-
-  val newPoints= pointIds.map(id => fit.point(id))
-  remove("newPoints")
-  show(newPoints, "newPoints")
-
-  if(nbIterations> 0) {
-    Thread.sleep(3000)
-    recursion(newPoints, nbIterations - 1)
-  }
-}
-```
-
-Here we defined a recursive function that repeats the exact same procedure we performed above for a given number of iterations. At each iteration, candidate correspondences are attributed to the input list of point positions. A Gaussian process regression is then performed and a new position for the points of interest is computed. 
-
-The new point positions are then used in the recursive function call to indicate the new starting position.
-
-At every iteration, the new positions of the corresponding characteristic points are displayed (with a 3 second delay for us to be able to follow the fitting progress).
-
-
-When now calling the recursive function for 5 iterations, starting from the loaded landmark positions, we should see the characteristic points gradually getting to better positions.
-(Make sure to look at the point positions after executing this)
-
-```tut:silent
-recursion( pointIds.map(id => model.mean.point(id)), 5) 
-```
-
-The final position of the characteristic points is then considered to be our model fit. These points are therefore the obtained correspondences with the target shape.
-
-##### Question: the found corresponding points are not always on the target surface, why is that?
-
-###### Answer: it quite often happens that the model does not exactly fit every point of the target shape, therefore resulting in some model points not lying on the target. The reason for this could be that the model fit did not converge (not enough iterations or local minimum), or that the model is not flexible enough to explain the target. In any case, since we are searching for corresponding points *x + u(x)* where *x* is a reference point and *u* is a deformation from our model, we still consider *x + u(x)* as the corresponding point. If we were to take the closest point on the target to *x + u(x)* as a corresponding point, we would obtain correspondences that are not explained by our model, which is generally not desired.
-
-
-##### Exercise: call the recursive function again while this time increasing the number of iterations. Does that impact the quality of the fitting in this case? If not, why not? 
-
-###### Answer: similar to the case in the rigid alignment ICP, the ICP fitting here also converges to a local minimum (be it a good or a bad one), out of which it does not exit. Increasing the number of iterations therefore does not have any effect on the quality of the result.
-
-#### ICP with more points
-
-Let us now do the exact same operations above, this time with much more points of interest.
-
-
-```tut:silent
-val pointSamples = UniformMeshSampler3D(model.mean, 5000, 42).sample.map(s => s._1)
-val pointIds = pointSamples.map{s => model.mean.findClosestPoint(s).id}
-val initialPositions = pointIds.map(id => model.mean.point(id))
-show(initialPositions, "more_points")
-```
-
-Here we start by uniformly sampling 5000 points on our model and retrieving the identifiers of the closest mesh vertices to these points. These vertices will now be the points for which we will seek correspondences.
-
-```tut:silent
-def recursion(currentPoints : Seq[Point[_3D]], nbIterations : Int) : Unit = {
-  println("iterations left " + nbIterations)
-  val candidates = attributeCorrespondences(currentPoints)
-  val fit = fitModel(pointIds, candidates)  
-  remove("fit")
-  show(fit,"fit")
-
-  val newPoints= pointIds.map(id => fit.point(id))
-
-  if(nbIterations> 0) {
-    Thread.sleep(2000)
-    recursion(newPoints, nbIterations - 1)
-  }
-}
-```
-
-We then define a recursive fitting function again, very similar to the one above, with the only difference that we are now visualizing the entire fitted mesh at every iteration and no longer limiting our attention to the fitted points.
-
-We can now call the recursion with 10 iterations to obtain our **model fit**; that is an instance of our face model that resembles the given target mesh.
-
-```tut:silent
-remove("more_points")
-recursion(initialPositions , 10) // color the target to visualize better
-```
-
-##### Exercise: given the obtained fit, retrieve the corresponding points to all the points of the face model and display the resulting deformation field. Hint: this would require modifying the return value of the recursive function.
+##### Exercise: verify that the face meshes are fitting the MRI images for the rest of the dataset.
 
 ```tut:book
-def recursion(currentPoints : Seq[Point[_3D]], nbIterations : Int) : Iterator[Point[_3D]]= {
+show(mri(1), "mri_2")
+show(faces(1), "face_2")
+// verify visually and repeat for others indexes: 2,3
+remove("mri_2"); remove("face_2")
+```
 
-  val candidates = attributeCorrespondences(currentPoints)
-  val fit = fitModel(pointIds, candidates)  
+Given that the loaded faces are in correspondence, we can locate the tip of the nose in all 4 faces. Below, we locate it on the first face mesh and add it as a landmark:
 
-  val newPoints= pointIds.map(id => fit.point(id))
+```tut:silent
+ val tipFace1 = faces.head.point(tipNoseID)
+ addLandmarksTo(Seq(Landmark("tip",tipFace1)), "face1")
+```
+##### Exercise: zoom in on the added landmark (you can do this by selecting the landmark then right clicking *-> Center slices here*) and evaluate the intensity at the tip in the first MRI. How does it compare to our target value?
 
-  if(nbIterations> 0) {
-    Thread.sleep(1000)
-    recursion(newPoints, nbIterations - 1)
-  } else {
-     fit.points 
-  }
+###### Answer: depending on the point you selected to evaluate the intensity of the nose tip on the target image, the value should be around 100 and 140. In this particular case, we notice that the intensity value at the landmark is 84, as it lies slightly outside of the face contour. This is due to the fact that the corresponding face is not **perfectly** matching the image contour.
+
+
+Now that we have the 3D point position of the tip of the nose, we can evaluate its intensity in the corresponding MRI programmatically:
+
+```tut:silent
+val continuousImage1 = mri.head.interpolate(3)
+val tipIntensity = continuousImage1(tipFace1)
+```
+Notice here that we started by interpolating the image first. This is due to the fact that the tip of the nose might not necessarily be one of the grid points on which the image is defined.
+
+Given that we have a dataset of fitting faces and MRIs, we can do the the same for other tips of noses in the dataset and collect their different intensities:
+
+```tut:silent
+val continuousImages : IndexedSeq[ScalarImage[_3D]] = mri.map{ 
+  im => im.interpolate(3)
 }
 
-val fittedPoints = recursion(initialPositions, 10)
-val pts = fittedPoints.toIndexedSeq
-val dom = UnstructuredPointsDomain(pts)
+val faceAndMri = faces zip continuousImages
 
-val defs = (pts zip model.referenceMesh.points.toIndexedSeq).map(t =>  t._1 - t._2)
-
-show( DiscreteVectorField(dom, defs), "defs")
+val tipIntensities = faceAndMri.map{ case (face, mri) => 
+  val tipPosition : Point[_3D] = face.point(tipNoseID)
+  val intensityVal : Float = mri(tipPosition)
+  DenseVector(intensityVal) 
+}
 ```
+
+Now *tipIntensities* contains 4 intensity values observed at tips of the nose in 4 different MRI images.
+
+##### Exercise: if we were to model the intensities of the different nose tips using a normal distribution, what would be the mean and standard deviation of the distribution?
+###### Answer: the answer is just below :)
+
+Now that we have our different sample intensity values, we can compute our intensity model by approximating the samples with a normal distribution using a method of the *MultivariateNormalDistribution* object in Scalismo:
+
+
+```tut:silent
+val intensityModel = MultivariateNormalDistribution.estimateFromData(tipIntensities)
+
+println("mean tip intensity " + intensityModel.mean)
+println("standard deviation tip intensity " + math.sqrt(intensityModel.cov(0,0)))
+```
+##### Question: the standard deviation seems to be rather high. Why do you think this is the case?
+
+###### Answer: this is due to the fact that the face surfaces are not always **perfectly** matching the corresponding MRI images as we noticed above. In some cases the nose tip is slightly outside/inside of the image contour therefore resulting in lower/higher intensity values.
+
+
+####  Evaluating the fitness of candidate positions
+
+Let us now go back to the goal of evaluating the fitness of candidate tip positions using to the intensity model.
+
+To do so, we evaluate the image intensity at every candidate point position and compute its [Mahalanobis distance](https://en.wikipedia.org/wiki/Mahalanobis_distance) to the intensity model:
+
+```tut:silent
+val continuousImage = image.interpolate(3)
+
+val mahalDistances = candidatePoints.map { p => 
+  val candidateIntensity = DenseVector(continuousImage(p))
+  intensityModel.mahalanobisDistance(candidateIntensity) 
+}
+```
+Here again, we started by interpolating our target MRI image as the candidate points do not belong to the discrete grid on which the MRI image is defined.
+
+The *mahalDistances* variable now contains the distance of each candidate point to the intensity model.
+
+The smaller the distance value, the more fit is the candidate to be a tip of a nose according to the intensity model.
+
+
+Let us now visualize these Mahalanobis distances on the candidate points:  
+
+```tut:silent
+val domain = UnstructuredPointsDomain(candidatePoints)
+val field = DiscreteScalarField[_3D, Double](domain, mahalDistances.toArray)
+show(image, "image")
+show(field, "mahal")
+remove("face1") ; remove("mri1") // cleanup
+```
+
+Here we started by creating a discrete scalar field, that is a 3D point cloud with a scalar value associated to each point. To do so, we specified the domain over which the field is defined, that are the candidate points. We also specify the values associated with every point of the field, which are the corresponding Mahalanobis distances.
+
+##### Exercise: visualize the scalar field in the scene. The more a point's color goes to red, the lower is its Mahalanobis distance to the intensity model. Where are the good points lying?
+
+###### Answer: in the paragraph below
+
+## Intensity models with neighborhood
+
+As you could hopefully see for yourself, the rather simplistic intensity model we computed above leads to many *false positives*. These are candidate nose tips considered to be good by the intensity model, while clearly lying too  far inside of the head.
+
+To narrow down our search to more relevant candidates, we need to extend our intensity model to take **the neighborhood** of the candidate points into account.
+
+The notion of neighborhood can of course take many forms: a squared patch around each point, an elliptic patch, etc ... We will choose in the following to adopt the same neighborhood notion as the Active Shape Model algorithm and consider a neighborhood of points along the vector normal to our shape at the point of interest:
+
+```tut:silent
+val normal1 : Vector[_3D] = faces.head.normalAtPoint(tipFace1)
+val neighbors = (-4 to 4).map(i => tipFace1 + normal1 * i)
+show(neighbors, "normalNeighbors")
+show(mri.head, "mri1")
+remove("image");remove("mahal") // cleanup
+```
+
+###### Note: Switch to the 3D view to visualize the neighbor points
+
+Here we started by retrieving the normal vector to our first face at the tip of the nose. We then regularly sampled and displayed 9 points along this normal, each spaced with 1mm (as our vector is normalized).
+
+Let's now define a function to extract the image intensities at these neighbor points:
+
+```tut:silent
+ def getFeatureVector(image: ScalarImage[_3D], tip: Point[_3D], normalDirection : Vector[_3D]) : DenseVector[Float] = {
+  val neighbors = (-4 to 4).map { i => tip + normalDirection * i }
+  val intensities = neighbors.map(p => image(p))
+  DenseVector(intensities.toArray)
+}
+```
+
+Here, we defined a function that when given a continuous image (the MRI), a point position in the image and the direction of the normal vector to the corresponding face at the tip of the nose, returns a vector containing 
+the intensity values at the neighborhood of the given point.
+
+We can now use this function to extract such a vector for every tip of nose in our dataset and build an intensity model, not only based on the single intensity at the tip point, but on the intensities in a neighborhood region of the tip of the nose:
+
+```tut:silent
+ val tipFeatures = faceAndMri.map { case (face, mri) =>
+  val tip = face.point(tipNoseID)
+  val normal = face.normalAtPoint(tip)
+  getFeatureVector(mri, tip, normal)
+}
+val betterIntensityModel = MultivariateNormalDistribution.estimateFromData(tipFeatures)
+val mean = betterIntensityModel.mean
+```
+##### Exercise: observe the mean intensity vector. What is the general tendency of the intensities at the neighborhood of the tip of the nose?
+
+###### Answer: when looking at the mean vector DenseVector(212.0841, 255.41866, 224.4656, 173.90057, 117.96514, 95.278206, 49.601017, 30.171265, 23.168406) one sees the progression of the intensity values from the inside of the head towards the outside values with the first value being an intensity measured at a neighbor of the tip inside the head and the last value at a neighbor outside. Such a profile captures much better the intensity information around the nose tip than the (rather noisy) single intensity at the tip point.
+
+
+Notice that, to evaluate the Mahalanobis distance of our candidate points, we also need to extract such an intensity vector for each candidate:
+
+```tut:silent
+val normalOnMean = model.mean.normalAtPoint(tipModel)
+
+val newMahalDistances = candidatePoints.map { candidate => 
+  val candidateIntensityVec = getFeatureVector(continuousImage, candidate, normalOnMean)
+  betterIntensityModel.mahalanobisDistance(candidateIntensityVec) 
+}
+
+val newField = DiscreteScalarField[_3D, Double](domain, newMahalDistances.toArray)
+show(newField, "new mahal")
+show(image, "image")
+remove("mri1"); remove("normalNeighbors") // cleanup
+
+```
+
+In this case, we choose the normal direction to be that of the normal to the tip of the nose on the mean mesh.
+
+##### Exercise: zoom in on the new displayed scalar field. Where are most of the red points located now?
+
+###### Answer: most of the red points are now located at *border* points between the inside and the outside of the face as all these points match well with the learned intensity profiles with the first half of the values being high values and the second half rather low ones.
+
+To finish our correspondence search, let us take the candidate point with the minimal Mahalanobis distance as our corresponding tip of the nose in the MRI:
+  
+```tut:silent
+val tipInMRI = candidatePoints.minBy { candidate =>
+  val candidateIntensityVec = getFeatureVector(continuousImage, candidate, normalOnMean)
+  betterIntensityModel.mahalanobisDistance(candidateIntensityVec)
+}
+remove("new mahal")
+show(Seq(tipInMRI), "BestCandidate") 
+```
+
+Notice here how we simply replaced the Scala collection's *map* method call by a *minBy* call (also a method of Collections) to now simply retrieve the element in the candidate list with the minimal Mahalanobis distance.
+
+As you can see, using this intensity model including the neighborhood information, we could now **automatically** locate the tip of the nose in the target MRI.
+
 <br><br>
 
 ```tut:invisible
-gui.close()
+gui.close
 ```

@@ -1,7 +1,7 @@
 # Model fitting with Iterative Closest Points
 
-The goal in this tutorial is to non-rigidly fit a shape model to a target surface using Iterative Closest Points (ICP) 
-in order to establish correspondences among two surfaces. 
+The goal in this tutorial is to non-rigidly fit a shape model to a target surface using Iterative Closest Points (ICP)
+in order to establish correspondences among two surfaces.
 
 ##### Related resources
 
@@ -13,9 +13,9 @@ some helpful context for this tutorial:
 
 ##### Preparation
 
-As in the previous tutorials, we start by importing some commonly used objects and initializing the system. 
+As in the previous tutorials, we start by importing some commonly used objects and initializing the system.
 
-```scala mdoc:silent
+```scala
 import scalismo.geometry._
 import scalismo.common._
 import scalismo.ui.api._
@@ -34,10 +34,10 @@ val ui = ScalismoUI()
 
 ### Problem setup
 
-Let's load and visualize a target mesh; I.e. a mesh, which we want to fit with our model, as well as 
+Let's load and visualize a target mesh; I.e. a mesh, which we want to fit with our model, as well as
 a statistical shape model.
 
-```scala mdoc:silent
+```scala
 val targetMesh = MeshIO.readMesh(new java.io.File("datasets/target.stl")).get
 val model = StatismoIO.readStatismoMeshModel(new java.io.File("datasets/bfm.h5")).get
 
@@ -48,44 +48,45 @@ val modelGroup = ui.createGroup("modelGroup")
 val modelView = ui.show(modelGroup, model, "model")
 ```
 
-As you can see in the 3D scene, we are currently displaying an instance of our model (the mean), 
-does not resemble the target face. The goal in shape model fitting is therefore to find an 
+As you can see in the 3D scene, we are currently displaying an instance of our model (the mean),
+does not resemble the target face. The goal in shape model fitting is therefore to find an
 instance of our shape model, which resembles at best the given target face.
-As we will see, a good fit allows us to find good correspondences between the points of our model. 
+As we will see, a good fit allows us to find good correspondences between the points of our model.
 
 ### Iterative Closest Points (ICP) and GP regression
 
-In a previous tutorial, we introduced rigid ICP to find the best rigid transformation between two meshes. 
+In a previous tutorial, we introduced rigid ICP to find the best rigid transformation between two meshes.
 We recall that the main steps of the algorithms are as follows:
 
-1. find **candidate** correspondences between the mesh to be aligned and the target one, 
+1. find **candidate** correspondences between the mesh to be aligned and the target one,
    by attributing the closest point on the target mesh as a candidate.
 2. solve for the best rigid transform between the moving mesh and the target mesh using Procrustes analysis.
-3. transform the moving mesh using the retrieved transform 
+3. transform the moving mesh using the retrieved transform
 4. loop to step 1 if the result is not aligned with the target (or if we didn't reach the limit number of iterations)
 
-The non-rigid ICP algorithm, which we can use for model fitting, will perform exactly the same steps 
-but instead of finding a rigid transformation in step 2, it finds a non-rigid one, using 
+The non-rigid ICP algorithm, which we can use for model fitting, will perform exactly the same steps
+but instead of finding a rigid transformation in step 2, it finds a non-rigid one, using
 Gaussian process regression.
 
 
 We start by first selecting the points for which we want to find the correspondences. We choose uniformely distributed
- points on the surface, which we can obtain as follows:
+points on the surface, which we can obtain as follows:
 
-```scala mdoc:silent
+```scala
 val sampler = UniformMeshSampler3D(model.referenceMesh, numberOfPoints = 5000)
 val points : Seq[Point[_3D]] = sampler.sample.map(pointWithProbability => pointWithProbability._1) // we only want the points
-``` 
+```
 
-Instead of working directly with the points, it is easier to work with the point ids of the sampled points: 
-```scala mdoc:silent
+Instead of working directly with the points, it is easier to work with the point ids of the sampled points:
+
+```scala
 val ptIds = points.map(point => model.referenceMesh.pointSet.findClosestPoint(point).id)
 ```
 
-As in the previous tutorial, we write the method ```attributeCorrespondences```, which finds for each 
+As in the previous tutorial, we write the method ```attributeCorrespondences```, which finds for each
 point of interest the closest point on the target.
 
-```scala mdoc:silent
+```scala
 def attributeCorrespondences(movingMesh: TriangleMesh[_3D], ptIds : Seq[PointId]) : Seq[(PointId, Point[_3D])] = {
   ptIds.map{ id : PointId => 
     val pt = movingMesh.pointSet.point(id)
@@ -95,9 +96,9 @@ def attributeCorrespondences(movingMesh: TriangleMesh[_3D], ptIds : Seq[PointId]
 }
 ```
 
-We can now use the correspondences we found to compute a Gaussian process regression. 
+We can now use the correspondences we found to compute a Gaussian process regression.
 
-```scala mdoc:silent
+```scala
 
 val correspondences = attributeCorrespondences(model.mean, ptIds)
 
@@ -116,10 +117,10 @@ val resultGroup = ui.createGroup("results")
 val fitResultView = ui.show(resultGroup, fit, "fit")
 ```
 
-While this one fitting iteration does not bring the points where we would like them to have, we are already 
+While this one fitting iteration does not bring the points where we would like them to have, we are already
 a step closer. As in the Rigid ICP case, we now iterate the procedure.
 
-```scala mdoc
+```scala
 def nonrigidICP(movingMesh: TriangleMesh[_3D], ptIds : Seq[PointId], numberOfIterations : Int) : TriangleMesh[_3D] = {
   if (numberOfIterations == 0) movingMesh
   else {
@@ -132,7 +133,8 @@ def nonrigidICP(movingMesh: TriangleMesh[_3D], ptIds : Seq[PointId], numberOfIte
 ```
 
 Repeating the fitting steps iteratively for 20 times results in a good fit of our model
-```scala mdoc:silent
+
+```scala
 val finalFit = nonrigidICP( model.mean, ptIds, 20)
 
 ui.show(resultGroup, finalFit, "final fit")
@@ -140,7 +142,8 @@ ui.show(resultGroup, finalFit, "final fit")
 
 To get the corresponding points for all the points of the model to the target mesh, we can now simply
 look up the ids of the closest points point for all model points:
-```scala mdoc:silent
+
+```scala
 val correspondingPointIds = finalFit.pointSet.pointsWithId.map(fitPointWithId => {
       val (fitPoint, modelId) = fitPointWithId
       val correspondingPointId = targetMesh.pointSet.findClosestPoint(fitPoint).id
@@ -148,8 +151,3 @@ val correspondingPointIds = finalFit.pointSet.pointsWithId.map(fitPointWithId =>
     }) 
 ```
 
-
-
-```scala mdoc:invisible
-ui.close()
-```
