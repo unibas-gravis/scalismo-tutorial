@@ -1,6 +1,6 @@
 # Iterative Closest Points for rigid alignment
 
-The goal in this tutorial is to derive an implementation of the classical Iterative Closest Points (ICP) algorithm 
+The goal in this tutorial is to derive an implementation of the classical Iterative Closest Points (ICP) algorithm
 in the context of rigid alignment of shapes.
 
 
@@ -10,13 +10,13 @@ The following resources from our [online course](https://www.futurelearn.com/cou
 some helpful context for this tutorial:
 
 - Superimposing shapes [(Article)](https://www.futurelearn.com/courses/statistical-shape-modelling/3/steps/250330)
-- Model-fitting and correspondence [(Video)](https://www.futurelearn.com/courses/statistical-shape-modelling/3/steps/250371)  
+- Model-fitting and correspondence [(Video)](https://www.futurelearn.com/courses/statistical-shape-modelling/3/steps/250371)
 
 ##### Preparation
 
-As in the previous tutorials, we start by importing some commonly used objects and initializing the system. 
+As in the previous tutorials, we start by importing some commonly used objects and initializing the system.
 
-```scala mdoc:silent
+```scala
 import scalismo.geometry._
 import scalismo.common._
 import scalismo.ui.api._
@@ -31,11 +31,12 @@ implicit val rng = scalismo.utils.Random(42)
 
 val ui = ScalismoUI()
 ```
+
 ## Automatic rigid alignment
 
 We start by loading and visualizing two meshes
 
-```scala mdoc:silent
+```scala
 val mesh1 = MeshIO.readMesh(new java.io.File("datasets/Paola.stl")).get
 val group1 = ui.createGroup("Dataset 1")
 ui.show(group1, mesh1, "mesh1")
@@ -46,29 +47,29 @@ ui.show(group2, mesh2, "mesh2")
 ```
 
 As you can see here, the meshes are not aligned. As in previous tutorials, we could identify corresponding points
-to align the meshes. The downside is, that this requires some manual intervention. 
+to align the meshes. The downside is, that this requires some manual intervention.
 In this tutorial we will instead use the Iterative Closest Point (ICP) method to perform this rigid alignment step **automatically**.
 
-### Candidate correspondences 
+### Candidate correspondences
 
-We have seen before that finding the best rigid transformation when given correct correspondences has a closed-form 
-solution. The problem we are facing here is that we do not have these correspondences. The idea of the ICP algorithm is, 
-that we can approximate the correspondences, by simply assuming that the corresponding point is always the closest point on 
+We have seen before that finding the best rigid transformation when given correct correspondences has a closed-form
+solution. The problem we are facing here is that we do not have these correspondences. The idea of the ICP algorithm is,
+that we can approximate the correspondences, by simply assuming that the corresponding point is always the closest point on
 the mesh.
 
 Let's select a few points from the mesh.
 
-```scala mdoc:silent
+```scala
 val ptIds = (0 until mesh1.pointSet.numberOfPoints by 50).map(i => PointId(i))
 ui.show(group1, ptIds.map(id => mesh1.pointSet.point(id)), "selected")
 ```
 
-The exact number of points is not important. It is only important that we select points, which are approximately 
-uniformly distributed over the surface. 
+The exact number of points is not important. It is only important that we select points, which are approximately
+uniformly distributed over the surface.
 
 In the next step, we find the corresponding points in the other mesh:
 
-```scala mdoc:silent
+```scala
 def attributeCorrespondences(movingMesh: TriangleMesh[_3D]) : IndexedSeq[(Point[_3D], Point[_3D])] = {
   ptIds.map{ id : PointId => 
     val pt = movingMesh.pointSet.point(id)
@@ -77,34 +78,35 @@ def attributeCorrespondences(movingMesh: TriangleMesh[_3D]) : IndexedSeq[(Point[
   } 
 }
 ```
+
 Note that we used here not ```mesh1``` directly, but passed the mesh from which we find the closest points as an argument,
 which we called the ```MovingMesh```. The reason is, that this will later be iteratively transformed to come closer to our target mesh ```mesh2```.
-  
+
 Let us now visualize the the chosen correspondences:
 
-```scala mdoc:silent
+```scala
 val correspondences = attributeCorrespondences(mesh1)
 val targetPoints = correspondences.map(pointPair => pointPair._2)
 ui.show(group2, targetPoints, "correspondences")
 ```
 
-As expected, the obtained correspondences are clearly not good, as they tend to focus on only one side of the target face. 
-Nevertheless, we can apply Procrustes analysis based on these correspondences and 
+As expected, the obtained correspondences are clearly not good, as they tend to focus on only one side of the target face.
+Nevertheless, we can apply Procrustes analysis based on these correspondences and
 retrieve a rigid transformation, which brings us closer to the target.
 
-```scala mdoc:silent
+```scala
 val rigidTrans =  LandmarkRegistration.rigid3DLandmarkRegistration(correspondences, center = Point3D(0, 0, 0))
 val transformed = mesh1.transform(rigidTrans) 
 ui.show(group1, transformed, "aligned?")
 ```
 
-**Well, no surprise here.** Given the poor quality of the candidate correspondences, we obtained a poor rigid alignment. 
+**Well, no surprise here.** Given the poor quality of the candidate correspondences, we obtained a poor rigid alignment.
 This said, when considering where we started from, that is the original position, we did get closer to the target.
 
-The second important idea of the ICP algorithm comes is now to **iterate** this steps in the hope that it will converge. 
+The second important idea of the ICP algorithm comes is now to **iterate** this steps in the hope that it will converge.
 Let's try it out:
 
-```scala mdoc:silent
+```scala
 val newCorrespondences = attributeCorrespondences(transformed)
 ui.show(group2, newCorrespondences.map(pointPair => pointPair._2), "newCandidateCorr")
 val newRigidTransformation = 
@@ -113,14 +115,14 @@ val newTransformed = transformed.transform(newRigidTransformation)
 ui.show(group2, newTransformed, "aligned??")
 ```
 
-As you can see, the candidate correspondences are still clearly wrong, 
-but start to be more spread around the target face. 
-Also the resulting rigid transformation seems to bring our mesh a bit closer to the target. 
+As you can see, the candidate correspondences are still clearly wrong,
+but start to be more spread around the target face.
+Also the resulting rigid transformation seems to bring our mesh a bit closer to the target.
 
 Finally, we change our implementation such that we can perform an arbitrary number of iterations:
 
 
-```scala mdoc:silent
+```scala
 def ICPRigidAlign(movingMesh: TriangleMesh[_3D], numberOfIterations : Int) : TriangleMesh[_3D] = {
   if (numberOfIterations == 0) movingMesh
   else {
@@ -132,20 +134,16 @@ def ICPRigidAlign(movingMesh: TriangleMesh[_3D], numberOfIterations : Int) : Tri
   }
 }
 ```
- 
-Let's now run it with 150 iterations: 
 
-```scala mdoc:silent
+Let's now run it with 150 iterations:
+
+```scala
 
 val rigidfit = ICPRigidAlign(mesh1, 150)
 ui.show(group1, rigidfit, "ICP_rigid_fit")
 ```
 
-As you can see here, the quality of the candidate correspondences did indeed result in a proper 
-**automatic** rigid alignment of Paola to the target. One should not forget, however, that the ICP method is 
+As you can see here, the quality of the candidate correspondences did indeed result in a proper
+**automatic** rigid alignment of Paola to the target. One should not forget, however, that the ICP method is
 very sensitive to the initial position, and might easily get stuck in a local minimum.
 
-
-```scala mdoc:invisible
-ui.close
-```
