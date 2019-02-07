@@ -31,6 +31,7 @@ implicit val rng = scalismo.utils.Random(42)
 
 val ui = ScalismoUI()
 ```
+
 ## Automatic rigid alignment
 
 We start by loading and visualizing two meshes
@@ -69,7 +70,7 @@ uniformly distributed over the surface.
 In the next step, we find the corresponding points in the other mesh:
 
 ```scala mdoc:silent
-def attributeCorrespondences(movingMesh: TriangleMesh[_3D]) : IndexedSeq[(Point[_3D], Point[_3D])] = {
+def attributeCorrespondences(movingMesh: TriangleMesh[_3D], ptIds : Seq[PointId]) : IndexedSeq[(Point[_3D], Point[_3D])] = {
   ptIds.map{ id : PointId => 
     val pt = movingMesh.pointSet.point(id)
     val closestPointOnMesh2 = mesh2.pointSet.findClosestPoint(pt).point
@@ -83,7 +84,7 @@ which we called the ```MovingMesh```. The reason is, that this will later be ite
 Let us now visualize the the chosen correspondences:
 
 ```scala mdoc:silent
-val correspondences = attributeCorrespondences(mesh1)
+val correspondences = attributeCorrespondences(mesh1, ptIds)
 val targetPoints = correspondences.map(pointPair => pointPair._2)
 ui.show(group2, targetPoints, "correspondences")
 ```
@@ -105,7 +106,7 @@ The second important idea of the ICP algorithm comes is now to **iterate** this 
 Let's try it out:
 
 ```scala mdoc:silent
-val newCorrespondences = attributeCorrespondences(transformed)
+val newCorrespondences = attributeCorrespondences(transformed, ptIds)
 ui.show(group2, newCorrespondences.map(pointPair => pointPair._2), "newCandidateCorr")
 val newRigidTransformation = 
     LandmarkRegistration.rigid3DLandmarkRegistration(newCorrespondences, center = Point3D(0, 0, 0))
@@ -121,14 +122,14 @@ Finally, we change our implementation such that we can perform an arbitrary numb
 
 
 ```scala mdoc:silent
-def ICPRigidAlign(movingMesh: TriangleMesh[_3D], numberOfIterations : Int) : TriangleMesh[_3D] = {
+def ICPRigidAlign(movingMesh: TriangleMesh[_3D], ptIds : Seq[PointId], numberOfIterations : Int) : TriangleMesh[_3D] = {
   if (numberOfIterations == 0) movingMesh
   else {
-    val correspondences = attributeCorrespondences(movingMesh)
+    val correspondences = attributeCorrespondences(movingMesh, ptIds)
     val transform = LandmarkRegistration.rigid3DLandmarkRegistration(correspondences, center = Point(0, 0, 0))
     val transformed = movingMesh.transform(transform) 
         
-    ICPRigidAlign(transformed, numberOfIterations - 1)
+    ICPRigidAlign(transformed, ptIds, numberOfIterations - 1)
   }
 }
 ```
@@ -137,7 +138,7 @@ Let's now run it with 150 iterations:
 
 ```scala mdoc:silent
 
-val rigidfit = ICPRigidAlign(mesh1, 150)
+val rigidfit = ICPRigidAlign(mesh1, ptIds, 150)
 ui.show(group1, rigidfit, "ICP_rigid_fit")
 ```
 
