@@ -16,7 +16,7 @@ As in the previous tutorials, we start by importing some commonly used objects a
 
 ```scala
 import scalismo.geometry._
-  import scalismo.common._
+import scalismo.common._
 import scalismo.ui.api._
 import scalismo.mesh._
 import scalismo.io.StatismoIO
@@ -68,7 +68,7 @@ val reference : TriangleMesh[_3D] = faceModel.referenceMesh
 as well as the Gaussian Process (GP)
 
 ```scala
-val faceGP : DiscreteLowRankGaussianProcess[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]] = faceModel.gp
+val faceGP : DiscreteLowRankGaussianProcess[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]] = faceModel.gp
 ```
 
 The type signature of the GP looks slightly scary. If we recall that a Gaussian process is a distribution over functions,
@@ -84,8 +84,8 @@ Consequently, when we draw samples or obtain the mean from the Gaussian process,
 signature. This is indeed the case
 
 ```scala
-val meanDeformation : DiscreteField[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]] = faceGP.mean
-val sampleDeformation : DiscreteField[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]] = faceGP.sample
+val meanDeformation : DiscreteField[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]] = faceGP.mean
+val sampleDeformation : DiscreteField[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]] = faceGP.sample
 ```
 
 Let's visualize the mean:

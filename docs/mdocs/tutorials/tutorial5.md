@@ -23,7 +23,7 @@ import scalismo.geometry._
 import scalismo.common._
 import scalismo.ui.api._
 import scalismo.mesh._
-import scalismo.io.StatismoIO
+import scalismo.io.StatisticalModelIO
 import scalismo.statisticalmodel._
 
 scalismo.initialize()
@@ -41,7 +41,7 @@ defined on a reference mesh. To continue our exploration of Gaussian processes, 
 
 
 ```scala mdoc:silent
-val model = StatismoIO.readStatismoMeshModel(new java.io.File("datasets/bfm.h5")).get
+val model = StatisticalModelIO.readStatisticalMeshModel(new java.io.File("datasets/bfm.h5")).get
 
 val modelGroup = ui.createGroup("modelGroup")
 val ssmView = ui.show(modelGroup, model, "model")
@@ -51,7 +51,7 @@ We can access the Gaussian Process and sample from it
 
 ```scala mdoc:silent
 val gp = model.gp
-val sampleDF : DiscreteField[_3D,UnstructuredPointsDomain[_3D], Vector[_3D]] = model.gp.sample
+val sampleDF : DiscreteField[_3D,UnstructuredPointsDomain[_3D], EuclideanVector[_3D]] = model.gp.sample
 
 val sampleGroup = ui.createGroup("sample")  
 ui.show(sampleGroup, sampleDF, "discreteSample")
@@ -64,14 +64,14 @@ As seen in the previous tutorial, we could now interpolate the sample ```sampleD
 A more convenient approach is, however, to interpolate directly the Gaussian process: 
  
 ```scala mdoc:silent
-val interpolator = NearestNeighborInterpolator[_3D, Vector[_3D]]()
+val interpolator = NearestNeighborInterpolator[_3D, EuclideanVector[_3D]]()
 val contGP = model.gp.interpolate(interpolator)
 ```
 
 Now, when sampling from the continuous GP, we obtain a vector-valued function, which is defined on the entire 3D Space: 
 
 ```scala mdoc:silent
-val contSample: Field[_3D,Vector[_3D]] = contGP.sample
+val contSample: Field[_3D, EuclideanVector[_3D]] = contGP.sample
 ```
 
 *Attention: While the interpolated Gaussian process is now defined on the entire 3D Space, the interpolation really only makes sense close to the mesh points*.
@@ -108,13 +108,13 @@ val referencePointSet = model.referenceMesh.pointSet
 val rightEyePt: Point[_3D] = referencePointSet.point(PointId(4281))
 val leftEyePt: Point[_3D] = referencePointSet.point(PointId(11937))
 val dom = UnstructuredPointsDomain(IndexedSeq(rightEyePt,leftEyePt))
-val marginal : DiscreteGaussianProcess[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]] = contGP.marginal(dom)
+val marginal : DiscreteGaussianProcess[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]] = contGP.marginal(dom)
 ```
 
 As we see, the result of marginalization is again a discrete Gaussian process. 
 We can now again obtain a sample for this Gaussian process
 ```scala mdoc:silent
-val sample : DiscreteField[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]] = marginal.sample 
+val sample : DiscreteField[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]] = marginal.sample 
 ui.show(sampleGroup, sample, "marginal_sample") 
 ```
 As you can see, the sample is now a discrete deformation field containing only 2 deformations over the desired points.  

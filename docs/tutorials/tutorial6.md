@@ -18,7 +18,7 @@ import scalismo.geometry._
 import scalismo.common._
 import scalismo.ui.api._
 import scalismo.mesh._
-import scalismo.io.{StatismoIO, MeshIO}
+import scalismo.io.{StatisticalModelIO, MeshIO}
 import scalismo.statisticalmodel._
 import scalismo.registration._
 import scalismo.statisticalmodel.dataset._
@@ -94,14 +94,14 @@ val defFields = alignedMeshes.map{ m =>
     m.pointSet.point(id) - reference.pointSet.point(id)
   }.toIndexedSeq
 
-  DiscreteField[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]](reference.pointSet, deformationVectors)
+  DiscreteField[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]](reference.pointSet, deformationVectors)
 }
 ```
 
 Finally, we can compute a ```DiscreteGaussianProcess``` from the data.
 
 ```scala
-val interpolator = NearestNeighborInterpolator[_3D, Vector[_3D]]()
+val interpolator = NearestNeighborInterpolator[_3D, EuclideanVector[_3D]]()
 val continuousFields = defFields.map(f => f.interpolate(interpolator) )
 val gp = DiscreteLowRankGaussianProcess.createUsingPCA(reference.pointSet, continuousFields)
 ```

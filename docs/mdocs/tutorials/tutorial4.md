@@ -67,7 +67,7 @@ val reference : TriangleMesh[_3D] = faceModel.referenceMesh
 ```
 as well as the Gaussian Process (GP)
 ```scala mdoc:silent
-val faceGP : DiscreteLowRankGaussianProcess[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]] = faceModel.gp
+val faceGP : DiscreteLowRankGaussianProcess[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]] = faceModel.gp
 ```
 The type signature of the GP looks slightly scary. If we recall that a Gaussian process is a distribution over functions, 
 we can, however, rather easily make sense of the individual bits. 
@@ -82,8 +82,8 @@ Consequently, when we draw samples or obtain the mean from the Gaussian process,
 signature. This is indeed the case  
   
 ```scala mdoc:silent
-val meanDeformation : DiscreteField[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]] = faceGP.mean
-val sampleDeformation : DiscreteField[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]] = faceGP.sample
+val meanDeformation : DiscreteField[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]] = faceGP.mean
+val sampleDeformation : DiscreteField[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]] = faceGP.sample
 ```
 
 Let's visualize the mean:

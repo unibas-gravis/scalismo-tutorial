@@ -64,7 +64,7 @@ importance, these transformations are readily defined in scalismo.
 To perform a  Translation, we define the following transformation:
 
 ```scala mdoc:silent
-val translation = TranslationTransform[_3D](Vector(100,0,0))
+val translation = TranslationTransform[_3D](EuclideanVector(100,0,0))
 ```
 
 For defining a rotation, we define the 3 [Euler angles](https://en.wikipedia.org/wiki/Euler_angles) , as well as the center of rotation.

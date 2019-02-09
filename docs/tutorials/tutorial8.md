@@ -22,7 +22,7 @@ import scalismo.geometry._
 import scalismo.common._
 import scalismo.ui.api._
 import scalismo.mesh._
-import scalismo.io.{StatismoIO, MeshIO}
+import scalismo.io.{StatisticalModelIO, MeshIO}
 import scalismo.statisticalmodel._
 import scalismo.numerics.UniformMeshSampler3D
 import scalismo.kernels._
@@ -38,7 +38,7 @@ val ui = ScalismoUI()
 We also load and visualize the face model:
 
 ```scala
-val model = StatismoIO.readStatismoMeshModel(new java.io.File("datasets/bfm.h5")).get
+val model = StatisticalModelIO.readStatisticalMeshModel(new java.io.File("datasets/bfm.h5")).get
 
 val modelGroup = ui.createGroup("modelGroup")
 val ssmView = ui.show(modelGroup, model, "model")
@@ -69,7 +69,7 @@ method of our ```ui``` object.
 ```scala
 val noseTipDomain = UnstructuredPointsDomain(IndexedSeq(noseTipReference))
 val noseTipDeformationAsSeq = IndexedSeq(noseTipDeformation)
-val noseTipDeformationField = DiscreteField[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]](noseTipDomain, noseTipDeformationAsSeq)
+val noseTipDeformationField = DiscreteField[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]](noseTipDomain, noseTipDeformationAsSeq)
 
 val observationGroup = ui.createGroup("observation")
 ui.show(observationGroup, noseTipDeformationField, "noseTip")
@@ -92,8 +92,8 @@ val regressionData = IndexedSeq((noseTipReference, noseTipDeformation, noise))
 We can now obtain the regression result by feeding this data to the method ```regression``` of the ```GaussianProcess``` object:
 
 ```scala
-val gp : LowRankGaussianProcess[_3D, Vector[_3D]] = model.gp.interpolate(NearestNeighborInterpolator())
-val posteriorGP : LowRankGaussianProcess[_3D, Vector[_3D]] = LowRankGaussianProcess.regression(gp, regressionData)
+val gp : LowRankGaussianProcess[_3D, EuclideanVector[_3D]] = model.gp.interpolate(NearestNeighborInterpolator())
+val posteriorGP : LowRankGaussianProcess[_3D, EuclideanVector[_3D]] = LowRankGaussianProcess.regression(gp, regressionData)
 ```
 
 Note that the result of the regression is again a Gaussian process, over the same domain as the original process. We call this the *posterior process*.
@@ -107,7 +107,7 @@ gp.posterior(regressionData)
 Independently of how you call the method, the returned type is a continuous (low rank) Gaussian Process from which we can now sample deformations at any set of points:
 
 ```scala
-val posteriorSample : DiscreteField[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]] 
+val posteriorSample : DiscreteField[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]] 
     = posteriorGP.sampleAtPoints(model.referenceMesh.pointSet)
 val posteriorSampleGroup = ui.createGroup("posteriorSamples")
 for (i <- 0 until 10) {

@@ -4,10 +4,11 @@ The goal in this tutorial is to present the most important data structures, as w
 
 ##### Related resources
 
-The following resources from our [online course](www.futurelearn.com/courses/statistical-shape-modelling) may provide
+The following resources from our [online course](https://www.futurelearn.com/courses/statistical-shape-modelling) may provide
 some helpful context for this tutorial:
 
-- What is Scalismo [(Video)](https://www.futurelearn.com/courses/statistical-shape-modelling/3/steps/250314)  
+- What is Scalismo [(Video)](https://www.futurelearn.com/courses/statistical-shape-modelling/3/steps/250314)
+
 
 ## Initializing the system
 
@@ -111,7 +112,7 @@ The two fundamental classes in this context are ```Point``` and ```Vector```:
 
 ```scala
 import scalismo.geometry.{Point}
-import scalismo.geometry.{Vector}
+import scalismo.geometry.{EuclideanVector}
 ```
 
 We define points by specifying their coordinates:
@@ -124,7 +125,7 @@ val p2 : Point[_3D] = Point(1.0, 2.0, 3.0)
 The difference between two points is a ```Vector```
 
 ```scala
-val v1 : Vector[_3D] = Point(4.0, 5.0, 6.0) - Point(1.0 , 2.0, 3.0) 
+val v1 : EuclideanVector[_3D] = Point(4.0, 5.0, 6.0) - Point(1.0 , 2.0, 3.0) 
 ```
 
 The sum of a point with a vector yields a new point:
@@ -136,7 +137,7 @@ val p3 : Point[_3D] = p1 + v1
 Points can be converted to vectors:
 
 ```scala
-val v2 : Vector[_3D] = p1.toVector
+val v2 : EuclideanVector[_3D] = p1.toVector
 ```
 
 and vice versa:
@@ -164,7 +165,7 @@ The average displacement can be easily computed by averaging all the vectors.
 
 ```scala
 val vectorSum = vectors.reduce{ (v1, v2) => v1 + v2} // sum up all vectors in the collection
-val centerV: Vector[_3D] = vectorSum * (1.0 / pointList.length ) // divide the sum by the number of points  
+val centerV: EuclideanVector[_3D] = vectorSum * (1.0 / pointList.length ) // divide the sum by the number of points  
 ```
 
 And finally we treat the average displacement again as a point in space.
@@ -208,7 +209,7 @@ Let's inspect the domain of the image :
 
 ```scala
 val origin : Point[_3D] = image.domain.origin
-val spacing : Vector[_3D] = image.domain.spacing
+val spacing : EuclideanVector[_3D] = image.domain.spacing
 val size : IntVector[_3D] = image.domain.size  
 ```
 
@@ -282,14 +283,14 @@ Finally, we look at Statistical Shape Models.
 We need the following imports
 
 ```scala
-import scalismo.io.StatismoIO // to read statistical shape models
+import scalismo.io.StatisticalModelIO // to read statistical shape models
 import scalismo.statisticalmodel.StatisticalMeshModel // the statistical shape models
 ```
 
 Statistical models can be read by calling ```readStatisticalMeshModel```
 
 ```scala
-val faceModel = StatismoIO.readStatismoMeshModel(new java.io.File("datasets/bfm.h5")).get
+val faceModel = StatisticalModelIO.readStatisticalMeshModel(new java.io.File("datasets/bfm.h5")).get
 val faceModelView = ui.show(faceModel, "faceModel")
 ```
 

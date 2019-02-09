@@ -57,11 +57,11 @@ reference mesh (i.e. the reference mesh is its domain).
 In Scalismo, such deformation fields are represented using a ```DiscreteVectorField```, which we can create as follows. 
 
 ```scala mdoc:silent
-val deformations : IndexedSeq[Vector[_3D]] = reference.pointSet.pointIds.map {
+val deformations : IndexedSeq[EuclideanVector[_3D]] = reference.pointSet.pointIds.map {
   id =>  meshes(1).pointSet.point(id) - reference.pointSet.point(id)
 }.toIndexedSeq
 
-val deformationField = DiscreteField[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]](reference.pointSet, deformations)
+val deformationField = DiscreteField[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]](reference.pointSet, deformations)
 ```
 
 Similar to discrete scalar images, a Discrete Vector Field is defined over a discrete domain. In contrast to images, the domain does not need to be structured (a grid for example) and can be any arbitrary finite set of points. In the above example code, we defined the domain to be the reference mesh points, which is of type ```UnstructuredPointsDomain[_3D]```, as we can easily check:
@@ -104,8 +104,8 @@ of interpolation.
 To turn our deformation field into a continuous deformation field, we need to define an ```Interpolator``` and call the ```interpolate```
 method:
 ```scala mdoc:silent
-val interpolator = NearestNeighborInterpolator[_3D, Vector[_3D]]()
-val continuousDeformationField : Field[_3D, Vector[_3D]] = deformationField.interpolate(interpolator)
+val interpolator = NearestNeighborInterpolator[_3D, EuclideanVector[_3D]]()
+val continuousDeformationField : Field[_3D, EuclideanVector[_3D]] = deformationField.interpolate(interpolator)
 ```
 As we do not know much about the structure of the points that define the mesh, we use a ```NearestNeighborInterpolator```, which means
 that for every point on which we want to evaluate the deformation, the nearest point on the mesh is found and returned. For other type of domain, 

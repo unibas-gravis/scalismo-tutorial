@@ -22,7 +22,7 @@ import scalismo.geometry._
 import scalismo.common._
 import scalismo.ui.api._
 import scalismo.mesh._
-import scalismo.io.{StatismoIO, MeshIO}
+import scalismo.io.{StatisticalModelIO, MeshIO}
 import scalismo.statisticalmodel._
 import scalismo.numerics.UniformMeshSampler3D
 import scalismo.kernels._
@@ -59,7 +59,7 @@ If the reference shape that we choose corresponds approximately to an average sh
 about our shape space, it is entirely reasonable to use a zero mean; I.e. for every point, the zero deformation is returned.
 
 ```scala
-val zeroMean = Field(RealSpace[_3D], (pt:Point[_3D]) => Vector(0,0,0))
+val zeroMean = Field(RealSpace[_3D], (pt:Point[_3D]) => EuclideanVector(0,0,0))
 ```
 
 ##### The covariance function:
@@ -174,7 +174,7 @@ In this case we are generating a rank 100 approximation of the Gaussian process.
 Using this low rank Gaussian process, we can now directly sample continuous deformation fields:
 
 ```scala
-val  defField : Field[_3D, Vector[_3D]]= lowRankGP.sample
+val  defField : Field[_3D, EuclideanVector[_3D]]= lowRankGP.sample
 ```
 
 These in turn, can be used to warp a reference mesh, as discussed above:
@@ -214,7 +214,7 @@ In the following, we show how this can be achieved.
 In a first step, we get the Gaussian process from the model an interpolate it.
 
 ```scala
-val pcaModel = StatismoIO.readStatismoMeshModel(new java.io.File("datasets/lowresModel.h5")).get
+val pcaModel = StatisticalModelIO.readStatisticalMeshModel(new java.io.File("datasets/lowresModel.h5")).get
 val gpSSM = pcaModel.gp.interpolate(NearestNeighborInterpolator())
 ```
 

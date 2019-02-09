@@ -70,7 +70,7 @@ uniformly distributed over the surface.
 In the next step, we find the corresponding points in the other mesh:
 
 ```scala mdoc:silent
-def attributeCorrespondences(movingMesh: TriangleMesh[_3D], ptIds : Seq[PointId]) : IndexedSeq[(Point[_3D], Point[_3D])] = {
+def attributeCorrespondences(movingMesh: TriangleMesh[_3D], ptIds : Seq[PointId]) : Seq[(Point[_3D], Point[_3D])] = {
   ptIds.map{ id : PointId => 
     val pt = movingMesh.pointSet.point(id)
     val closestPointOnMesh2 = mesh2.pointSet.findClosestPoint(pt).point
@@ -86,7 +86,7 @@ Let us now visualize the the chosen correspondences:
 ```scala mdoc:silent
 val correspondences = attributeCorrespondences(mesh1, ptIds)
 val targetPoints = correspondences.map(pointPair => pointPair._2)
-ui.show(group2, targetPoints, "correspondences")
+ui.show(group2, targetPoints.toIndexedSeq, "correspondences")
 ```
 
 As expected, the obtained correspondences are clearly not good, as they tend to focus on only one side of the target face. 
@@ -107,7 +107,8 @@ Let's try it out:
 
 ```scala mdoc:silent
 val newCorrespondences = attributeCorrespondences(transformed, ptIds)
-ui.show(group2, newCorrespondences.map(pointPair => pointPair._2), "newCandidateCorr")
+val newClosestPoints = newCorrespondences.map(pointPair => pointPair._2)
+ui.show(group2, newClosestPoints.toIndexedSeq, "newCandidateCorr")
 val newRigidTransformation = 
     LandmarkRegistration.rigid3DLandmarkRegistration(newCorrespondences, center = Point3D(0, 0, 0))
 val newTransformed = transformed.transform(newRigidTransformation) 

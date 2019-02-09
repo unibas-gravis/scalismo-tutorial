@@ -93,7 +93,7 @@ val preprocessedImage = asm.preprocessor(image)
 We can now extract features at a given point:
 
 ```scala
-val point1 = image.domain.origin + Vector(10.0, 10.0, 10.0)
+val point1 = image.domain.origin + EuclideanVector(10.0, 10.0, 10.0)
 val profile = asm.profiles.head
 val feature1 : DenseVector[Double] = asm.featureExtractor(preprocessedImage, point1, asm.statisticalModel.mean, profile.pointId).get
 ```
@@ -105,7 +105,7 @@ of a line at this point.
 We can retrieve the likelihood, that each corresponding point corresponds to a given profile point:
 
 ```scala
-val point2 = image.domain.origin + Vector(20.0, 10.0, 10.0)
+val point2 = image.domain.origin + EuclideanVector(20.0, 10.0, 10.0)
 val featureVec1 = asm.featureExtractor(preprocessedImage, point1, asm.statisticalModel.mean, profile.pointId).get
 val featureVec2 = asm.featureExtractor(preprocessedImage, point2, asm.statisticalModel.mean, profile.pointId).get
 
@@ -193,7 +193,7 @@ We set up the initial transformations
 
 ```scala
 // we start with the identity transform
-val translationTransformation = TranslationTransform(Vector(0, 0, 0))
+val translationTransformation = TranslationTransform(EuclideanVector(0, 0, 0))
 val rotationTransformation = RotationTransform(0, 0, 0, rotationCenter)
 val initialRigidTransformation = RigidTransformation(translationTransformation, rotationTransformation)
 val initialModelCoefficients = DenseVector.zeros[Double](asm.statisticalModel.rank)

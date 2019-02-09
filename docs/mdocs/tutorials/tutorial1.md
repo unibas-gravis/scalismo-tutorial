@@ -107,7 +107,7 @@ We are very often interested in modelling transformations of point sets. Therefo
 The two fundamental classes in this context are ```Point``` and ```Vector```:
 ```scala mdoc:silent
 import scalismo.geometry.{Point}
-import scalismo.geometry.{Vector}
+import scalismo.geometry.{EuclideanVector}
 ```
 
 We define points by specifying their coordinates:
@@ -118,7 +118,7 @@ val p2 : Point[_3D] = Point(1.0, 2.0, 3.0)
 The difference between two points is a ```Vector```
 
 ```scala mdoc:silent
-val v1 : Vector[_3D] = Point(4.0, 5.0, 6.0) - Point(1.0 , 2.0, 3.0) 
+val v1 : EuclideanVector[_3D] = Point(4.0, 5.0, 6.0) - Point(1.0 , 2.0, 3.0) 
 ```
 
 The sum of a point with a vector yields a new point:
@@ -127,7 +127,7 @@ val p3 : Point[_3D] = p1 + v1
 ```
 Points can be converted to vectors:
 ```scala mdoc:silent
-val v2 : Vector[_3D] = p1.toVector
+val v2 : EuclideanVector[_3D] = p1.toVector
 ```
 and vice versa:
 ```scala mdoc:silent
@@ -150,7 +150,7 @@ val vectors = pointList.map{p : Point[_3D] => p.toVector}  // use map to turn po
 The average displacement can be easily computed by averaging all the vectors. 
 ```scala mdoc:silent 
 val vectorSum = vectors.reduce{ (v1, v2) => v1 + v2} // sum up all vectors in the collection
-val centerV: Vector[_3D] = vectorSum * (1.0 / pointList.length ) // divide the sum by the number of points  
+val centerV: EuclideanVector[_3D] = vectorSum * (1.0 / pointList.length ) // divide the sum by the number of points  
 ```
 
 And finally we treat the average displacement again as a point in space. 
@@ -192,7 +192,7 @@ Let's inspect the domain of the image :
 
 ```scala mdoc:silent
 val origin : Point[_3D] = image.domain.origin
-val spacing : Vector[_3D] = image.domain.spacing
+val spacing : EuclideanVector[_3D] = image.domain.spacing
 val size : IntVector[_3D] = image.domain.size  
 ```
 
@@ -262,13 +262,13 @@ Finally, we look at Statistical Shape Models.
 We need the following imports
 
 ```scala mdoc:silent
-import scalismo.io.StatismoIO // to read statistical shape models
+import scalismo.io.StatisticalModelIO // to read statistical shape models
 import scalismo.statisticalmodel.StatisticalMeshModel // the statistical shape models
 ```
 
 Statistical models can be read by calling ```readStatisticalMeshModel``` 
 ```scala mdoc:silent
-val faceModel = StatismoIO.readStatismoMeshModel(new java.io.File("datasets/bfm.h5")).get
+val faceModel = StatisticalModelIO.readStatisticalMeshModel(new java.io.File("datasets/bfm.h5")).get
 val faceModelView = ui.show(faceModel, "faceModel")
 ```
 (suggestion: previously created objects are not needed in the following and can be removed from the scene.

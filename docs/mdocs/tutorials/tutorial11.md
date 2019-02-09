@@ -22,7 +22,7 @@ import scalismo.ui.api._
 import scalismo.mesh._
 import scalismo.statisticalmodel.MultivariateNormalDistribution
 import scalismo.numerics.UniformMeshSampler3D
-import scalismo.io.{MeshIO, StatismoIO, LandmarkIO}
+import scalismo.io.{MeshIO, StatisticalModelIO, LandmarkIO}
 import breeze.linalg.{DenseMatrix, DenseVector}
 
 scalismo.initialize()
@@ -39,7 +39,7 @@ a statistical shape model.
 
 ```scala mdoc:silent
 val targetMesh = MeshIO.readMesh(new java.io.File("datasets/target.stl")).get
-val model = StatismoIO.readStatismoMeshModel(new java.io.File("datasets/bfm.h5")).get
+val model = StatisticalModelIO.readStatisticalMeshModel(new java.io.File("datasets/bfm.h5")).get
 
 val targetGroup = ui.createGroup("targetGroup")
 val targetMeshView = ui.show(targetGroup, targetMesh, "targetMesh")

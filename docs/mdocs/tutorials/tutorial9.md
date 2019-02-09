@@ -11,7 +11,7 @@ import scalismo.geometry._
 import scalismo.common._
 import scalismo.ui.api._
 import scalismo.mesh._
-import scalismo.io.{StatismoIO, MeshIO, LandmarkIO}
+import scalismo.io.{StatisticalModelIO, MeshIO, LandmarkIO}
 import scalismo.statisticalmodel._
 import scalismo.numerics.UniformMeshSampler3D
 import scalismo.kernels._
@@ -34,7 +34,7 @@ ui.show(targetGroup, noseless,"noseless")
 
 Finally, we also load the face model.
 ```scala mdoc:silent
-val smallModel = StatismoIO.readStatismoMeshModel(new java.io.File("datasets/model.h5")).get 
+val smallModel = StatisticalModelIO.readStatisticalMeshModel(new java.io.File("datasets/model.h5")).get 
 ```
 
 ## Enlarging the flexibility of a shape model
@@ -60,7 +60,7 @@ def symmetrizeKernel(kernel : PDKernel[_3D]) : MatrixValuedPDKernel[_3D] = {
    k1 + k2
 }
 
-val gp = GaussianProcess[_3D, Vector[_3D]](symmetrizeKernel(scalarValuedKernel))
+val gp = GaussianProcess[_3D, EuclideanVector[_3D]](symmetrizeKernel(scalarValuedKernel))
 val lowrankGP = LowRankGaussianProcess.approximateGP(gp, UniformMeshSampler3D(smallModel.referenceMesh, 200), numBasisFunctions = 30)
 val model = StatisticalMeshModel.augmentModel(smallModel, lowrankGP)
 
@@ -103,7 +103,7 @@ In other words, we **observed** a few deformation vectors at the selected model 
 ```scala mdoc
 val domain = UnstructuredPointsDomain(referencePoints.toIndexedSeq)
 val deformations = (0 until referencePoints.size).map(i => noselessPoints(i) - referencePoints(i) )
-val defField = DiscreteField[_3D, UnstructuredPointsDomain[_3D], Vector[_3D]](domain, deformations)
+val defField = DiscreteField[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]](domain, deformations)
 ui.show(modelGroup, defField, "partial_Field")
 ```
 
