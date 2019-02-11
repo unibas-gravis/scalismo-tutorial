@@ -1,3 +1,5 @@
+{% include head.html %}
+
 # Posterior Shape Models
 
 In this tutorial we will use Gaussian processes for regression tasks and experiment with the concept of posterior shape models.
@@ -47,7 +49,7 @@ val ssmView = ui.show(modelGroup, model, "model")
 
 ## Fitting observed data using Gaussian process regression
 
-The reason we build statistical models, is that we want to use them
+The reason we build statistical models is that we want to use them
 for explaining data. More precisely, given some observed data, we fit the model
 to the data and get as a result a distribution over the model parameters.
 In our case, the model is a Gaussian process model of shape deformations, and the data are observed shape deformations; I.e. deformation vectors from the reference surface.
@@ -75,14 +77,15 @@ val observationGroup = ui.createGroup("observation")
 ui.show(observationGroup, noseTipDeformationField, "noseTip")
 ```
 
-In the next step we set up the regression. The Gaussian process model assumes, that the deformation is always only observed with some uncertainty,
+In the next step we set up the regression. The Gaussian process model assumes that the deformation
+is observed only up to some uncertainty,
 which can be modelled using a normal distribution.
 
 ```scala
 val noise = MultivariateNormalDistribution(DenseVector.zeros[Double](3), DenseMatrix.eye[Double](3))
 ```
 
-The data for the regression is specified by a sequence of triples, consisting of the point of the reference, the
+In Scalismo, the data for the regression is specified by a sequence of triples, consisting of the point of the reference, the
 corresponding deformation vector, as well as the noise at that point:
 
 ```scala
@@ -136,7 +139,7 @@ val posteriorModelGroup = ui.createGroup("posteriorModel")
 ui.show(posteriorModelGroup, meshModelPosterior, "NoseyModel")
 ```
 
-##### Exercise: sample a few random faces from the graphical interface using the random button. Notice how all faces display large noses :) with the tip of the nose remaining close to the selected landmark.
+*Exercise: sample a few random faces from the graphical interface using the random button. Notice how all faces display large noses :) with the tip of the nose remaining close to the selected landmark.*
 
 
 Here again we obtain much more than just a single face instance fitting the input data: we get a full normal distribution of shapes fitting the observation. The **most probable** shape, and hence our best fit, is the **mean** of the posterior.
@@ -147,10 +150,14 @@ average (mean) deformation at the tip of the nose.
 
 #### Landmark uncertainty:
 
-As you could see previously, when specifying the training data for the posterior GP computation, we model the uncertainty of the input data.
-This can allow to tune the fitting results.
+When we are specifying the training data for the posterior GP computation,
+we model the uncertainty of the input data. The variance of this
+noise model has a large influence on the resulting posterior distribution.
+We should choose it always such that it corresponds as closely as possible to
+the real uncertainty of our observation.
 
-Below, we perform the posterior computation again with, this time, a 5 times bigger noise variance.
+To see how this variance influences the posterior, we perform the posterior computation again with,
+this time, a 5 times bigger noise variance.
 
 
 ```scala
@@ -161,5 +168,7 @@ val posteriorGroupLargeNoise = ui.createGroup("posteriorLargeNoise")
 ui.show(posteriorGroupLargeNoise, discretePosteriorLargeNoise, "NoisyNoseyModel")
 ```
 
-##### Exercise: sample a few faces from this noisier posterior model. How flexible is the model compared to the previous posterior? How well are the sample tips fitting to the indicated landmark when compared with the previous posterior?
+We observe, that there is now much more variance left in this posterior process,
+which is a consequence of the larger uncertainty that was associated with the
+observed data.
 
