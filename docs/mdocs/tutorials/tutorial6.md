@@ -1,3 +1,5 @@
+{% include head.html %}
+
 # Building a shape model from data
 
 The goal in this tutorial is to learn how to build a Statistical Shape Model 
