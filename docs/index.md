@@ -3,7 +3,12 @@
 The following tutorials explain all the basic concepts behind Scalismo, which are needed for developing complete shape modelling applications.
 The intention behind these tutorials is not only to show how to use the software, but also to help understanding the theoretical concepts underlying the software. 
 Originally, these tutorials were designed as part of the Open Online Course [Statistical Shape Modelling - Computing the Human Anatomy](https://www.futurelearn.com/courses/statistical-shape-modelling).  
-Each tutorial is accompanied by a short video, which explains the theoretical background. 
+Each tutorial contains links to videos and articles from the online course, which will 
+provide some theoretical background. 
+
+### Data
+
+The datasets used in these tutorials can downloaded from [here](https://drive.switch.ch/index.php/s/zOJDpqh2ZGxzJJH). 
 
 ### Tutorials
 
