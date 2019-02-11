@@ -19,8 +19,9 @@ scalismo.initialize()
 implicit val rng = scalismo.utils.Random(42)
 ```
 
-The call to ```scalismo.initialize``` loads all the dependencies to native C++ libraries (such as e.g. [vtk](https://www.vtk.org) or [hdf5](https://www.hdf-group.org)). The second call, tells scalismo, which source
-of randomness it should be using and at the same time seeds the random number generator appropriately.
+The call to ```scalismo.initialize``` loads all the dependencies to native C++ libraries (such as e.g. [vtk](https://www.vtk.org) or [hdf5](https://www.hdf-group.org)).
+The second call tells scalismo, which source
+of randomness to use and at the same time seeds the random number generator appropriately.
 
 Later on we would like to visualize the objects we create. This is done using [Scalismo-ui](https://github.com/unibas-gravis/scalismo-ui) - the visualization library accompanying scalismo.
 We can load an instance of the GUI, which we name here simply ```ui``` as follows:
@@ -34,8 +35,10 @@ val ui = ScalismoUI()
 
 ## Meshes (surface data)
 
-The first fundamental data structure we discuss is the Triangle Mesh, which is defined in the package ```scalismo.mesh```.
-We will need the following imports:
+The first fundamental data structure we discuss is the triangle mesh,
+which is defined in the package ```scalismo.mesh```.
+In the following we will need access to the following object, which we
+now import:
 
 ```scala
 import scalismo.mesh.TriangleMesh // the mesh class
@@ -45,15 +48,16 @@ import scalismo.mesh.TriangleId // to refer to triangles by id
 import scalismo.geometry._3D // indicates that we work in 3D space
 ```
 
-Meshes can be read from a File using the method ```readMesh``` from the ```MeshIO```:
+Meshes can be read from a file using the method ```readMesh``` from the ```MeshIO```:
 
 ```scala
 val mesh : TriangleMesh[_3D] = MeshIO.readMesh(new java.io.File("datasets/Paola.stl")).get
 ```
 
-To visualize any object in Scalismo, we can use the ```show``` method of the ```ui``` object. We will see later
-on that we often want to organize different visualization of an object in a group. We start directly with this practice and
-first create a new group, to which we then add a visualization:
+To visualize any object in Scalismo, we can use the ```show``` method of the ```ui``` object.
+We often want to organize different visualizations of an object in a group.
+We start directly with this practice and
+first create a new group, to which we then add the visualization of the mesh:
 
 ```scala
 val paolaGroup = ui.createGroup("paola")
@@ -66,23 +70,25 @@ Now that the mesh is displayed in the "Scalismo Viewer's 3D view", you can inter
 * to shift/translate: maintain the middle mouse button clicked and drag
 * to scale: maintain the right mouse button clicked and drag up or down
 
-###### Note: if you are a Mac user, please find out how to emulate these events using your mouse or trackpad
-
-Note also that you can use the *RC*, *X*, *Y* and *Z* buttons in the 3D view to recenter the camera on the displayed object.
+*Note: if you are a Mac user, please find out how to emulate these events using your mouse or trackpad*
+*Note also that you can use the *RC*, *X*, *Y* and *Z* buttons in the 3D view to recenter the camera on the displayed object.*
 
 #### Anatomy of a Triangle mesh
 
-A 3D triangle mesh in scalismo consists of a ```pointSet```, which maintains a collection of 3D points and a list of triangle cells. We can access individual points using their PointId.
+A 3D triangle mesh in scalismo consists of a ```pointSet```, which maintains a collection of 3D points and a
+list of triangle cells. We can access individual points using their point id.
 Here we show how we can access the first point in the mesh:
 
 ```scala
 println("first point " + mesh.pointSet.point(PointId(0)))
+// first point Point3D(162.2697296142578,-11.115056991577148,301.18719482421875)
 ```
 
 Similarly, we can access the first triangles as follows:
 
 ```scala
 println("first cell " + mesh.triangulation.triangle(TriangleId(0)))
+// first cell TriangleCell(PointId(0),PointId(1),PointId(2))
 ```
 
 The first cell is a triangle between the first, second and third points of the mesh.
@@ -97,7 +103,7 @@ val pointCloudView = ui.show(paolaGroup, mesh.pointSet, "pointCloud")
 
 This should add a new point cloud element to the scene with the name "pointCloud".
 
-###### Note: depending on your computer, visualizing the full point cloud may slow down the visualization performance.
+*Note: depending on your computer, visualizing the full point cloud may slow down the visualization performance.*
 
 Note that to clean up the 3D scene, you can delete the objects either from the user interface (by right-clicking on the object's name), or programmatically by calling ```remove``` on the corresponding view object :
 
@@ -108,7 +114,7 @@ pointCloudView.remove()
 ## Points and Vectors
 
 We are very often interested in modelling transformations of point sets. Therefore we need to learn how to manipulate point positions.
-The two fundamental classes in this context are ```Point``` and ```Vector```:
+The two fundamental classes in this context are ```Point``` and ```EuclideanVector```:
 
 ```scala
 import scalismo.geometry.{Point}
@@ -122,7 +128,7 @@ val p1 : Point[_3D] = Point(4.0, 5.0, 6.0)
 val p2 : Point[_3D] = Point(1.0, 2.0, 3.0)
 ```
 
-The difference between two points is a ```Vector```
+The difference between two points is a ```EuclideanVector```
 
 ```scala
 val v1 : EuclideanVector[_3D] = Point(4.0, 5.0, 6.0) - Point(1.0 , 2.0, 3.0) 
@@ -195,7 +201,7 @@ val image = ImageIO.read3DScalarImage[Short](new java.io.File("datasets/PaolaMRI
 val imageView = ui.show(paolaGroup, image, "mri")
 ```
 
-###### Note: depending on your view on the scene, it could appear as if the image is not displayed. In this case, make sure to rotate the scene and change the position of the slices as indicated below.
+*Note: depending on your view on the scene, it could appear as if the image is not displayed. In this case, make sure to rotate the scene and change the position of the slices as indicated below.*
 
 To visualize the different image slices in the viewer, select "Scene" (the upper node in the scene tree graph) and use the X,Y,Z sliders.
 
@@ -209,8 +215,15 @@ Let's inspect the domain of the image :
 
 ```scala
 val origin : Point[_3D] = image.domain.origin
+// origin: Point[_3D] = Point3D(
+//   92.54853820800781,
+//   -121.92584228515625,
+//   135.2670135498047
+// )
 val spacing : EuclideanVector[_3D] = image.domain.spacing
+// spacing: EuclideanVector[_3D] = EuclideanVector3D(1.5, 1.5, 1.5)
 val size : IntVector[_3D] = image.domain.size  
+// size: IntVector[_3D] = IntVector3D(171, 171, 139)
 ```
 
 The discrete image domain is a 3-dimensional regular grid of points originating at point (92.5485, -121.926, 135.267),
@@ -231,18 +244,20 @@ The other important part of a discrete image are the values associated with the 
 val values : Iterator[Short] = image.values
 ```
 
-This is an iterator of scalar values of type Short as encoded in the read image.
+This is an iterator of scalar values of type ```Short``` as encoded in the read image.
 
 Let's check the first value, which is the value associated with the origin :
 
 ```scala
 image.values.next 
+// res4: Short = 0
 ```
 
 The point *origin* corresponds to the grid point with index (0,0,0). Hence, the same value can be obtained by accessing the image at this index :
 
 ```scala
 image(IntVector(0,0,0)) 
+// res5: Short = 0
 ```
 
 Naturally, the number of scalar values should be equal to the number of point domains
@@ -253,9 +268,10 @@ image.values.size == image.domain.points.size
 
 Notice that you can check the intensity value at a particular point position in the image, by maintaining the Ctrl key pressed and hovering over the image. The intensity value will then be displayed in the lower left corner of the Scalismo viewer window.
 
-##### Creating scalar images
+### Creating scalar images
 
-Given that discrete scalar images are simply a mapping between points and values, we can very easily create such images programmatically.
+Given that discrete scalar images are a mapping between points and values,
+we can easily create such images programmatically.
 
 Here we create a new image defined on the same domain of points with artificially created values: We threshold an MRI image, where
 all the values above 300 are replaced with 0.
@@ -267,7 +283,7 @@ val thresholdedImage : DiscreteScalarImage[_3D, Short] = DiscreteScalarImage[_3D
 ui show(paolaGroup, thresholdedImage, "thresh")
 ```
 
-*Note: We need to write 0.toShort or 0 : Short in order to ensure that the ```threshValues``` have type ```Short``` and not ```Int```.
+*Note: We need to write 0.toShort or 0 : Short in order to ensure that the ```threshValues``` have type ```Short``` and not ```Int```.*
 
 There is, however, also a more elegant way to write above code. ```DiscreteScalarImage``` supports a ```map``` method, which applies
 an operation to all values. Using this method, we can write instead
@@ -294,15 +310,11 @@ val faceModel = StatisticalModelIO.readStatisticalMeshModel(new java.io.File("da
 val faceModelView = ui.show(faceModel, "faceModel")
 ```
 
-(suggestion: previously created objects are not needed in the following and can be removed from the scene.
-You can do this by right-clicking on the group *paolaGroup* in Scalismo-ui and selecting "Remove all"
-)
-
 ### Sampling in the UI
 
-##### Exercise: Sample random instances of faces by using the graphical tools in the scene pane : click on the "model" tree node and then the "Random" button
+*Exercise: Sample random instances of faces by using the graphical tools in the scene pane : click on the "model" tree node and then the "Random" button*
 
-##### Exercise: click a landmark on a position of the face model, e.g. chin or eye corner.. (use the toggle button "LM" in the toolbar to activate landmark clicking). Rename this landmark and call it *noseLM*. Now continue sampling from the model. What happens to the selected point?
+*Exercise: click a landmark on a position of the face model, e.g. chin or eye corner.. (use the toggle button "LM" in the toolbar to activate landmark clicking). Rename this landmark and call it *noseLM*. Now continue sampling from the model. What happens to the selected point?*
 
 As you can see, a new instance of the face model is displayed each time along with the corresponding landmark point. Notice how the position of the landmark point changes in space while it keeps the same "meaning" on the face (eye corner, tip of nose ..)
 
@@ -322,31 +334,32 @@ val randomFace : TriangleMesh[_3D] = faceModel.sample
 ##### Retrieving objects from Scalismo-ui
 
 This is a good point to show how objects that we added manually in Scalismo-ui can be retrieved programmatically. A typical example is,
-that we manually clicked a landmark, such as our ```noteLM```, on one of the visualized objects and would like to work with them in our
+that we manually clicked a landmark, such as our ```noseLM```, on one of the visualized objects and would like to work with them in our
 programs.
 To achieve this we can use the ```filter``` method of the ui object. It works as follows:
 
-```
+```scala
 import scalismo.ui.api.LandmarkView
-import scalismo.landmarks.Landmark
+import scalismo.geometry.Landmark
 
-val matchingLandmarkViews : Seq[LandmarkView] = ui.filter[LandmarkView](paolaGroup, (l : LandmarkView) => l.name == "noseLM*)
-val matchingLandmarks : Seq[Landmark] = matchingLandmarkViews.map(lmView => lmView.landmark)
+val matchingLandmarkViews : Seq[LandmarkView] = ui.filter[LandmarkView](paolaGroup, (l : LandmarkView) => l.name == "noseLM")
+val matchingLandmarks : Seq[Landmark[_3D]] = matchingLandmarkViews.map(lmView => lmView.landmark)
 ```
 
-The ```filter``` method is very general. The type parameter (the parameter inside []) indicates the type of ```view```object we want to
+The ```filter``` method is very general. The type parameter (the parameter inside []) indicates the type of ```view``` object we want to
 search for. Here we look only for landmarks, and consequently specify the type ```LandmarkView```. As a first we  pass the group,
 in which we want to search for an object. The second argument is a predicate, which is executed for all objects in the group, of the right type.
-Here we specify, that find should match all objects whose name equals "noseLM". Calling the ```filter``` method results in a sequence
+Here we specify, that ```filter``` should match all objects whose name equals "noseLM". Calling the ```filter``` method results in a sequence
 of view objects, which match the predicate. To get the matching scalismo object, we call the method ```landmark``` on the view object.
 We can do this for all landmark view objects in the sequence using the familiar ```map``` function.
 
 Finally, we can get the id and position of the matched landmark as follows:
 
-```
-val landmarkId : String = landmarks.head.id
-val landmarkPosition : Point[_3D] = landmarks.head.point
+```scala
+val landmarkId : String = matchingLandmarks.head.id
+val landmarkPosition : Point[_3D] = matchingLandmarks.head.point
 ```
 
-*Remark: In exactly the same way we can retrieve all other types of objects, which we can visualizin in Scalismo-ui, such as images, meshes, pointClouds, etc.*
+*Remark: In exactly the same way we can retrieve all other types of objects,
+which we can visualize in in Scalismo-ui, such as images, meshes, pointClouds, etc.*
 
