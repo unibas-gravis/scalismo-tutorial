@@ -1,3 +1,5 @@
+{% include head.html %}
+
 # Rigid alignment
 
 In this tutorial we show how rigid alignment of shapes can be performed in Scalismo.
