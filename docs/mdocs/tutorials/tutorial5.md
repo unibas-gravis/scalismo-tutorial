@@ -1,3 +1,5 @@
+{% include head.html %}
+
 # Gaussian processes, sampling and marginalization
 
 
