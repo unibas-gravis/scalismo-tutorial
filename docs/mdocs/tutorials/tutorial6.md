@@ -183,7 +183,7 @@ in correspondence.
 
 *Exercise: sample a few faces from the second model. How does the quality of the obtained shapes compare to the model built from aligned data?*
 
-*Exercise: using the GUI, change the coefficient of the first principal component of the *nonAligned* shape model. What is the main shape variation encoded in the model?*
+*Exercise: using the GUI, change the coefficient of the first principal component of the nonAligned shape model. What is the main shape variation encoded in the model?*
 
 
 
