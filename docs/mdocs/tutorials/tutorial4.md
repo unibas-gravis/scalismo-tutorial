@@ -1,3 +1,4 @@
+{% include head.html %}
 
 # Gaussian processes and Point Distribution Models
 
