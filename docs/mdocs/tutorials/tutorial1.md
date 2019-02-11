@@ -1,3 +1,5 @@
+{% include head.html %}
+
 # Hello Scalismo!
 
 The goal in this tutorial is to present the most important data structures, as well as the visualization capabilities of Scalismo.
