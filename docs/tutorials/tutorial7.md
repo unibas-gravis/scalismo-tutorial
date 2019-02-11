@@ -2,7 +2,9 @@
 
 # Shape modelling with Gaussian processes and kernels
 
-In this tutorial we define our own Gaussian processes using analytically defined kernels, and experiment with different kernels.
+In this tutorial we learn how to define our own Gaussian processes using analytically
+defined kernels. Further, we experiment with different kernels that are useful in
+shape modelling.
 
 ##### Related resources
 
@@ -48,7 +50,7 @@ val referenceView = ui.show(modelGroup, referenceMesh, "reference")
 
 ## Modelling deformations using Gaussian processes:
 
-A Gaussian Process is defined by 2 components, the **mean function** and the **covariance function**.
+A Gaussian Process is defined by two components: the **mean function** and the **covariance function**.
 
 ##### The mean:
 
@@ -56,7 +58,8 @@ As we are modelling deformation fields, the mean of the Gaussian process will, o
 In terms of shape models, we can think of the mean function as the deformation field that deforms our reference mesh into the mean shape.
 
 If the reference shape that we choose corresponds approximately to an average shape, and we do not have any further knowledge
-about our shape space, it is entirely reasonable to use a zero mean; I.e. for every point, the zero deformation is returned.
+about our shape space, it is entirely reasonable to use a zero mean; I.e. a deformation field which applies to
+every point a zero deformation.
 
 ```scala
 val zeroMean = Field(RealSpace[_3D], (pt:Point[_3D]) => EuclideanVector(0,0,0))
@@ -111,8 +114,8 @@ an easier way in Scalismo. First, the scalar-valued Gaussian kernel is already i
 val scalarValuedGaussianKernel : PDKernel[_3D]= GaussianKernel(sigma = 100.0)
 ```
 
-Further, the class ```DiagonalKernel```allows us to turn any scalar-valued kernel into a matrix-valued kernel by specifying for
-each dimension of the output-space a kernel and assuming them to be independent. To obtain the same kernel as defined above, we can write:
+Further, the class ```DiagonalKernel```allows us to turn any scalar-valued kernel into a matrix-valued kernel,
+by specifying for each dimension of the output-space a kernel and assuming them to be independent. To obtain the same kernel as defined above, we can write:
 
 ```scala
 val matrixValuedGaussianKernel = DiagonalKernel(scalarValuedGaussianKernel, scalarValuedGaussianKernel, scalarValuedGaussianKernel)
@@ -141,8 +144,8 @@ val sample = gp.sampleAtPoints(referenceMesh.pointSet)
 ui.show(sampleGroup, sample, "gaussianKernelGP_sample")
 ```
 
-As you can see, this is now an instance (or a random sample function) from the Gaussian Process evaluated at the points we indicated;
-in this case on the points of the reference mesh.
+The result is an instance from the Gaussian Process evaluated at the points
+we indicated;  in this case on the points of the reference mesh.
 
 We can visualize its effect by interpolating the deformation field, which we then use to deform the reference mesh:
 
@@ -154,23 +157,27 @@ ui.show(sampleGroup, deformedMesh, "deformed mesh")
 
 #### Low-rank approximation
 
-Whenever we create a sample using the ```sampleAtPoints``` method of the Gaussian process, internally a matrix of dimensionality $$nd \times d$$,where $$n$$ denotes the number of points and $$d$$ the dimensionality of the output space, is created. Hence if we want to sample
+Whenever we create a sample using the ```sampleAtPoints``` method of the Gaussian process, internally a matrix of dimensionality $$nd \times nd$$,where $$n$$ denotes the number of points and $$d$$ the dimensionality of the output space, is created. Hence if we want to sample
 from many points we quickly run out of memory.
 
 We can get around this problem by computing a low-rank approximation of the Gaussian process.
-To obtain such a representation in Scalismo, we can use the *approximateGP* method of the *LowRankGaussianProcess* object.
+To obtain such a representation in Scalismo, we can use the method
+````approximateGPCholesky``` of the *LowRankGaussianProcess* object.
 
 ```scala
-val lowRankGP = LowRankGaussianProcess.approximateGP(
+val lowRankGP = LowRankGaussianProcess.approximateGPCholesky(
+    referenceMesh.pointSet,
     gp, 
-    UniformMeshSampler3D(referenceMesh, numberOfPoints = 300), 
-    numBasisFunctions = 100
+    relativeTolerance = 0.01,
+    interpolator = NearestNeighborInterpolator()
     )
 ```
 
-This call computes a finite-rank approximation of the Gaussian Process using a Nyström approximation.
-In this case we are generating a rank 100 approximation of the Gaussian process.
-
+This call computes a finite-rank approximation of the Gaussian Process using a
+Pivoted Cholesky approximation. The procedure automatically chooses the rank (I.e. the
+number of basis functions of the Gaussian process), such that the given relative error
+is achieved. (The error is measures in terms of the variance of the Gaussian
+process, approximated on the points of the reference Mesh).
 Using this low rank Gaussian process, we can now directly sample continuous deformation fields:
 
 ```scala
@@ -240,10 +247,11 @@ val augmentedGP = GaussianProcess(gpSSM.mean, augmentedCov)
 From here on, we follow the steps outlined above to obtain the *augmented* SSM.
 
 ```scala
-val lowRankAugmentedGP = LowRankGaussianProcess.approximateGP(
+val lowRankAugmentedGP = LowRankGaussianProcess.approximateGPCholesky(
+    referenceMesh.pointSet,
     augmentedGP,  
-    UniformMeshSampler3D(pcaModel.referenceMesh, numberOfPoints = 300), 
-    numBasisFunctions = gpSSM.rank + 50
+    relativeTolerance = 0.01,
+    interpolator = NearestNeighborInterpolator(), 
     )
 val augmentedSSM = StatisticalMeshModel(pcaModel.referenceMesh, lowRankAugmentedGP)
 ```
