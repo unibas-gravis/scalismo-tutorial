@@ -1,2 +1,3 @@
 # scalismo-tutorial
-Tutorial for scalismo
+
+Tutorial and documentation for scalismo
