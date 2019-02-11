@@ -1,3 +1,5 @@
+{% include head.html %}
+
 # From meshes to deformation fields
 
 *In this tutorial, we show how the deformation fields that relate two meshes can be computed and visualized.*
