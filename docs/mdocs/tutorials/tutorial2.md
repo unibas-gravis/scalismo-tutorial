@@ -39,14 +39,16 @@ Scalismo allows us to perform geometric transformations on meshes.
 
 Transformations are *functions* that map a given point, into a new *transformed* point.
 We find the transformations in the package ```scalismo.registration```. 
-Lets import the classes in this package
+Let's import the classes in this package
 ```scala mdoc:silent
 import scalismo.registration.{Transformation, RotationTransform, TranslationTransform, RigidTransformation}
 ```
 
 
-The most general way to define a transformation is by specifying the function, which is applied directly.
-The following example shows a transformation, which simply flips the point along the x axis. 
+The most general way to define a transformation is by specifying the transformation function 
+explicitly. The following example illustrates this by defining a transformation, 
+which flips the point along the x axis. 
+
 
 ```scala mdoc:silent
 val flipTransform = Transformation((p : Point[_3D]) => Point(-p.x, p.y, p.z))
@@ -54,14 +56,15 @@ val flipTransform = Transformation((p : Point[_3D]) => Point(-p.x, p.y, p.z))
 
 When given a point as an argument, the defined transform will then simply return a new point:
 
-```scala mdoc:silent
+```scala mdoc
 val pt : Point[_3D] = flipTransform(Point(1.0, 1.0, 1.0))
 ```
 
-An important class of Transformations are the rigid transformation, i.e. a rotation followed by a translation. Due to their 
+An important class of transformations are the rigid transformation, i.e. a rotation followed by a translation. Due to their 
 importance, these transformations are readily defined in scalismo. 
 
-To perform a  Translation, we define the following transformation:
+A translation can be defined by specifying the translation vector, which is
+added to every point:
 
 ```scala mdoc:silent
 val translation = TranslationTransform[_3D](EuclideanVector(100,0,0))
@@ -74,7 +77,7 @@ val rotation : RotationTransform[_3D] = RotationTransform(0f,3.14f,0f, rotationC
 ```
 This transformation rotates every point with approximately 180 degrees around the Y axis (centered at the origin of the space). 
 
-```scala mdoc:silent
+```scala mdoc
 val pt2 : Point[_3D] = rotation(Point(1,1,1))
 ```
 
@@ -85,8 +88,6 @@ transformed by invoking the method ```transform``` on the respective object.
 val translatedPaola : TriangleMesh[_3D] = mesh.transform(translation)
 val paolaMeshTranslatedView = ui.show(paolaGroup, translatedPaola, "translatedPaola")
 ```
-
-Here, we used the *transform* method of the TriangleMesh class. This method takes as input a transformation function that maps a 3D point into another 3D point and applies it to all the points of the mesh while maintaining the same triangulation. As a result, we obtain a new translated version of Paola
 
 ### Composing transformations
 
@@ -103,8 +104,9 @@ val rigidTransform2 : RigidTransformation[_3D] = RigidTransformation[_3D](transl
 ```
 
 
-##### Exercise: Apply the rotation transform to the original mesh of Paola and show the result
-##### Note: since the rotation is around the origin, you might have to zoom out (hold right click and drag down) to see the result.
+*Exercise: Apply the rotation transform to the original mesh of Paola and show the result*
+
+*Note: since the rotation is around the origin, you might have to zoom out (hold right click and drag down) to see the result.*
 
 
 ### Rigid alignment
@@ -112,16 +114,17 @@ val rigidTransform2 : RigidTransformation[_3D] = RigidTransformation[_3D](transl
 A task that we need to perform in any shape modelling pipeline, is the rigid alignment of objects; I.e. normalizing the pose of 
 an object with respect to some reference. 
 
-To illustrate this procedure, we consider the mesh of Paola, which we loaded, and translate it rigidly using the rigid transformation defined above. 
+To illustrate this procedure, we transform the mesh of Paola rigidly using the 
+rigid transformation defined above. 
+
 ```scala mdoc:silent
 val paolaTransformedGroup = ui.createGroup("paolaTransformed")
 val paolaTransformed = mesh.transform(rigidTransform2)
 ui.show(paolaTransformedGroup, paolaTransformed, "paolaTransformed")
 ```
 
-In the following we assume that we do not know the parameters of the translation and rotation that led to *rigidPaola*.
-
-**How can we retrieve those parameters and obtain a transformation from the original mesh to *rigidPaola* ?**
+The task is now to retrieve the transformation, which best aligns the transformed mesh
+with the original mesh, from the meshes alone. 
 
 Rigid alignment is easiest if we already know some corresponding points in both shapes. Assume for the moment, that we 
 have identified a few corresponding points and marked them using landmarks. We can then apply *Procrustes Analysis*. 
@@ -137,7 +140,8 @@ val paolaLandmarkViews = paolaLandmarks.map(lm => ui.show(paolaGroup, lm, s"${lm
 val paolaTransformedLandmarkViews = paolaTransformedLandmarks.map(lm => ui.show(paolaTransformedGroup, lm, lm.id))
 ```
 
-Given this lists of landmarks, we can apply Procrustes analysis to retrieve the best rigid transformation from the original set of landmarks to the new one as follows:
+Given this lists of landmarks, we can use the method ```rigid3DLandmarkRegistration``` 
+to retrieve the best rigid transformation from the original set of landmarks:
 
 ```scala mdoc:silent
 import scalismo.registration.LandmarkRegistration
@@ -155,9 +159,7 @@ val transformedLms = paolaLandmarks.map(lm => lm.transform(bestTransform))
 val landmarkViews = ui.show(paolaGroup, transformedLms, "transformedLMs")
 ```
 
-##### Question: Are the transformed landmarks matching *perfectly* the set of *rigidLms*? If not, why not?
-
-Let's now also apply the transform to the entire mesh : 
+And finally, we apply the transformation to the entire mesh:
 
 ```scala mdoc:silent
 val alignedPaola = mesh.transform(bestTransform)
@@ -165,10 +167,6 @@ val alignedPaolaView = ui.show(paolaGroup, alignedPaola, "alignedPaola")
 alignedPaolaView.color = java.awt.Color.RED
 ```
 
-##### Question: Is the transformed mesh matching *perfectly rigidPaola*? If not, why not?
-
-
-##### Exercise: Load the mesh file named "datasets/323.stl" and perform a similar alignment of Paola to this mesh. Feel free to pick any set of landmarks you wish.
 
 ```scala mdoc:invisible
 ui.close()
