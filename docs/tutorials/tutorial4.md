@@ -29,55 +29,53 @@ val ui = ScalismoUI()
 ```
 
 
-# Gaussian Processes and Point Distribution Models
+## Gaussian Processes and Point Distribution Models
 
-We start by loading a shape model (or PDM) of faces :
-
+We start by loading and visualizing a shape model (or PDM) of faces :
 
 ```scala
 val faceModel = StatismoIO.readStatismoMeshModel(new java.io.File("datasets/bfm.h5")).get
 val modelGroup = ui.createGroup("model")
 ```
 
-This models a **probability distribution of face meshes**. We can obtain concrete face meshes by sampling from it:
+This model represents a **probability distribution of face meshes**.
+
+While we cannot visualize this distribution directly, we can obtain
+and visualize the mean shape:
 
 ```scala
-val sampledFace : TriangleMesh[_3D] = faceModel.sample
-
 val sampleGroup = ui.createGroup("samples")
-ui.show(sampleGroup, sampledFace, "randomFace")
-```
 
-or we can obtain its mean:
-
-```scala
 val meanFace : TriangleMesh[_3D] = faceModel.mean
 ui.show(sampleGroup, meanFace, "meanFace")
 ```
 
+or we can obtain concrete face meshes by sampling from it:
 
-##### The GP behind the PDM:
+```scala
+val sampledFace : TriangleMesh[_3D] = faceModel.sample
+ui.show(sampleGroup, sampledFace, "randomFace")
+```
 
-A PDM can be seen as a triangle Mesh (called the reference mesh) on which a Gaussian Process over deformation fields
-is defined. Consequently, we can obtain from the face model the reference mesh:
+
+#### The GP behind the PDM:
+
+In Scalismo, a PDM is represented as a triangle mesh (called the reference mesh)
+on which a Gaussian Process over deformation fields is defined:
 
 ```scala
 val reference : TriangleMesh[_3D] = faceModel.referenceMesh
-```
-
-as well as the Gaussian Process (GP)
-
-```scala
 val faceGP : DiscreteLowRankGaussianProcess[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]] = faceModel.gp
 ```
 
-The type signature of the GP looks slightly scary. If we recall that a Gaussian process is a distribution over functions,
+The type signature of the GP looks slightly scary.
+If we recall that a Gaussian process is a distribution over functions,
 we can, however, rather easily make sense of the individual bits.
 The type signature tells us that:
-- It is a DiscreteGaussianProcess. This means, the function, which the process models are defined on a discrete, finite set of points)
+- It is a DiscreteGaussianProcess. This means, the function, which the process models are defined on a discrete, finite set of points.
 - It is defined in 3D Space (indicated by the type parameter ```_3D```)
 - Its domain of the modeled functions is a ```UnstructuredPointsDomain``` (namely the points of the reference mesh)
-- The values of the modeled functions are vectors (more precisely, they are of type ```SpatialVectors```).
+- The values of the modeled functions are vectors (more precisely, they are of type ```EuclideanVector```).
 - It is represented using a low-rank approximation. This is a technicality, which we will come back to later.
 
 Consequently, when we draw samples or obtain the mean from the Gaussian process, we expect to obtain functions with a matching
@@ -88,13 +86,13 @@ val meanDeformation : DiscreteField[_3D, UnstructuredPointsDomain[_3D], Euclidea
 val sampleDeformation : DiscreteField[_3D, UnstructuredPointsDomain[_3D], EuclideanVector[_3D]] = faceGP.sample
 ```
 
-Let's visualize the mean:
+Let's visualize the mean deformation:
 
 ```scala
 ui.show(sampleGroup, meanDeformation, "meanField")
 ```
 
-##### Exercise : make everything invisible in the 3D scene, except for "meanField" and "meanFace". Now zoom in (right click and drag) on the vector field. Where are the tips of the vectors ending?
+* Exercise : make everything invisible in the 3D scene, except for "meanField" and "meanFace". Now zoom in (right click and drag) on the vector field. Where are the tips of the vectors ending?*
 
 As you hopefully see, all the tips of the mean deformation vectors end on points of the mean face.
 
@@ -121,5 +119,5 @@ The same is happening when randomly sampling from the face model :
 2. the deformation field is applied to the reference mesh to obtain a random face mesh
 
 
-##### Exercise : Perform the 2 steps above in order to sample a random face (that is sample a random deformation first, then use it to warp the reference mesh).
+*Exercise : Perform the 2 steps above in order to sample a random face (that is sample a random deformation first, then use it to warp the reference mesh).*
 
