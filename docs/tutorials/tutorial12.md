@@ -39,7 +39,7 @@ a set of images and corresponding contour, we can save these models, and we can 
 we will assume that the model has already been built and will only concentrate on model fitting.
 
 
-We can load an Active Sahpe Model as follows:
+We can load an Active Shape Model as follows:
 
 ```scala
 val asm = ActiveShapeModelIO.readActiveShapeModel(new java.io.File("datasets/femur-asm.h5")).get
@@ -55,7 +55,8 @@ val modelView = ui.show(modelGroup, asm.statisticalModel, "shapeModel")
 
 The second part of the model is the intensity model. This model consists of a set of profiles,
 which are attached to specific vertices of the shape model, indicated by the ```pointId```.
-For each of the profile points, an probability distribution, which represent the intensity model for this profile.
+For each profile, a probability distribution is defined. This distribution represent the intensity variation that we
+expect for this profile.
 
 The following code shows how this information can be accessed:
 
@@ -69,10 +70,10 @@ profiles.map(profile => {
 
 #### Finding likely model correspondences in an image
 
-The main usage of this information is the points of the image, which are most likely to correspond to the given "profile points* in the model.
+The main usage of the profile distribution is to identify the points in the image, which are most likely to correspond to the given profile points in the model.
 More precisely, let $$p_i$$ denote the i-th profile in the model. We can use the information to evaluate for any set of points
 $(x_1, \ldots, x_n)$, how likely it is that a point $x_j$ corresponds to the profile point $p_i$, based on the image intensity patterns
-$$(\rho(x_1), \ldots, \rho(x_n))$$ we find at these points in an image.
+$$\rho(x_1), \ldots, \rho(x_n)$$ we find at these points in an image.
 
 To illustrate this, we first load an image:
 
@@ -102,7 +103,7 @@ Here we specified the preprocessed image, a point in the image where whe want th
 The mesh instance and point id are needed, since a feature extractor might choose to extract the feature based on mesh information, such as the normal direction
 of a line at this point.
 
-We can retrieve the likelihood, that each corresponding point corresponds to a given profile point:
+We can retrieve the likelihood that each corresponding point corresponds to a given profile point:
 
 ```scala
 val point2 = image.domain.origin + EuclideanVector(20.0, 10.0, 10.0)
@@ -113,73 +114,40 @@ val probabilityPoint1 = profile.distribution.logpdf(featureVec1)
 val probabilityPoint2 = profile.distribution.logpdf(featureVec2)
 ```
 
-#### Evaluating the likelihood of a model instance overlapping with an image
+Based on this information, we can decide, which point is more likely to correspond to the model point. This idea forms the
+basis of the original m Active Shape Model Fitting algorithm.
 
-We can extend the method used above to compute the likelihood for all profile points of an Active Shape Model,
-in order to determine whether a given model instance nicely fits to the image.
-
-Given the model instance, we will get the position of each profile point in the current instance,
-evaluate its likelihood and then compute the joint likelihood for all profiles.
-
-Assuming independence, the joint probability is just the product of the probability at the individual profile points.
-In order not to get too extreme values, we use log probabilities here (and consequently the product becomes a sum).
-
-```scala
-def likelihoodForMesh(asm : ActiveShapeModel, mesh : TriangleMesh[_3D], preprocessedImage: PreprocessedImage) : Double = {
-
-    val ids = asm.profiles.ids
-
-    val likelihoods = for (id <- ids) yield {
-        val profile = asm.profiles(id)
-        val profilePointOnMesh = mesh.pointSet.point(profile.pointId)
-        val featureAtPoint = asm.featureExtractor(preprocessedImage, profilePointOnMesh, mesh, profile.pointId).get
-        profile.distribution.logpdf(featureAtPoint)
-    }
-    likelihoods.sum
-}
-```
-
-This method allows us to compute for each mesh, represented by the model, how likely it is to correspond
-to the given image.
-
-```scala
-val sampleMesh1 = asm.statisticalModel.sample 
-val sampleMesh2 = asm.statisticalModel.sample
-println("Likelihood for mesh 1 = " + likelihoodForMesh(asm, sampleMesh1, preprocessedImage))
-println("Likelihood for mesh 2 = " + likelihoodForMesh(asm, sampleMesh2, preprocessedImage))
-```
-
-This information is all that is need to write probabilistic fitting methods methods using Markov Chain Monte Carlo
-methods, which will be discussed in the next tutorial.
 
 ### The original Active Shape Model Fitting
 
-Although in Scalismo we prefer to follow a probabilistic approach and use the ASM objects
-only to evaluate the likelyhood of a shape,
-we have also implemented the original active shape model fitting algorithm, as proposed by [Cootes and Taylor](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.141.3089&rep=rep1&type=pdf).
+Scalismo features an implementation of Active Shape Model fitting algorithm, as proposed by [Cootes and Taylor](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.141.3089&rep=rep1&type=pdf).
 
-To configure the fitting process, we need to set up a search method, which searches points in the image as candidates
-for corresponding points. One search strategy that is already implemented in Scalismo is to search along
+To configure the fitting process, we need to set up a search method, which searches for a given model point, corresponding  points
+in the image. From these points, the most likely point is select and used as as the corresponding point for one iteration of
+the algorithm. Once these "candidate correspondences" have been established, the rest of the algorithm works in exactly the same as
+the ICP algorithm that we described in the previous tutorials.
+
+One search strategy that is already implemented in Scalismo is to search along
 the normal direction of a model point. This behavior is provided by the ```NormalDirectionSearchPointSampler```
 
 ```scala
 val searchSampler = NormalDirectionSearchPointSampler(numberOfPoints = 100, searchDistance = 3)
 ```
 
-We also need to pass some configuration parameters to the fitting process:
+In addition to the search strategy, we can specify some additional configuration parameters to control the fitting process:
 
 ```scala
 val config = FittingConfiguration(featureDistanceThreshold = 3, pointDistanceThreshold = 5, modelCoefficientBounds = 3)
 ```
 
-The first determines how far away (as measured by the mahalanobis distance) an intensity feature can be, such that it is still
+The first parameter determines how far away (as measured by the mahalanobis distance) an intensity feature can be, such that it is still
 chosen as corresponding. The ```pointDistanceThreshold``` does the same for the distance of the points; I.e. in this  case points which are
 more than 5 standard deviations aways are not chosen as corresponding points. The last parameters determines how
-large coefficients of the model can become in the fitting process. Whenver a model parameter is larger than this threshold,
+large coefficients of the model can become in the fitting process. Whenever a model parameter is larger than this threshold,
 it will be set back to this maximal value. This introduces a regularization into the fitting, which prevents the shape
 from becoming too unlikely.
 
-The ASM fitting algorithm optimizes both the pose (as defined by a RigidTransformation) and the shape.
+The ASM fitting algorithm optimizes both the pose (as defined by a rigid transformation) and the shape.
 In order to allow it to optimize the rotation, it is important that we choose a rotation center, which is approximately
 the center of mass of the model:
 
@@ -189,7 +157,7 @@ val modelBoundingBox = asm.statisticalModel.referenceMesh.boundingBox
 val rotationCenter = modelBoundingBox.origin + modelBoundingBox.extent * 0.5    
 ```
 
-We set up the initial transformations
+To initialize the fitting process, we also need to set up the initial transformation:
 
 ```scala
 // we start with the identity transform
@@ -224,10 +192,48 @@ val asmIteratorWithVisualization = asmIterator.map(it => {
 })   
 ```
 
-To run the model, and get the result, we finally consume the iterator:
+To run the fitting, and get the result, we finally consume the iterator:
 
 ```scala
 val result = asmIteratorWithVisualization.toIndexedSeq.last
 val finalMesh = result.get.mesh
 ```
+
+## Evaluating the likelihood of a model instance under the image
+
+In the previous section we have used the intensity distribution to find the best corresponding image point to a
+given point in the model. Sometimes we are also interested in finding out how well a model fits an image.
+To compute this, we can extend the method used above to compute the likelihood for all profile points of an Active Shape Model.
+
+Given the model instance, we will get the position of each profile point in the current instance,
+evaluate its likelihood and then compute the joint likelihood for all profiles. Assuming independence, the joint probability is just the product of the probability at the individual profile points.
+In order not to get too extreme values, we use log probabilities here (and consequently the product becomes a sum).
+
+```scala
+def likelihoodForMesh(asm : ActiveShapeModel, mesh : TriangleMesh[_3D], preprocessedImage: PreprocessedImage) : Double = {
+
+    val ids = asm.profiles.ids
+
+    val likelihoods = for (id <- ids) yield {
+        val profile = asm.profiles(id)
+        val profilePointOnMesh = mesh.pointSet.point(profile.pointId)
+        val featureAtPoint = asm.featureExtractor(preprocessedImage, profilePointOnMesh, mesh, profile.pointId).get
+        profile.distribution.logpdf(featureAtPoint)
+    }
+    likelihoods.sum
+}
+```
+
+This method allows us to compute for each mesh, represented by the model, how likely it is to correspond
+to the given image.
+
+```scala
+val sampleMesh1 = asm.statisticalModel.sample 
+val sampleMesh2 = asm.statisticalModel.sample
+println("Likelihood for mesh 1 = " + likelihoodForMesh(asm, sampleMesh1, preprocessedImage))
+println("Likelihood for mesh 2 = " + likelihoodForMesh(asm, sampleMesh2, preprocessedImage))
+```
+
+This information is all that is need to write probabilistic fitting methods methods using Markov Chain Monte Carlo
+methods, which will be discussed in a later tutorial.
 
