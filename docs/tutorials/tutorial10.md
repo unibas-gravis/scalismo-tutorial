@@ -1,3 +1,5 @@
+{% include head.html %}
+
 # Iterative Closest Points for rigid alignment
 
 The goal in this tutorial is to derive an implementation of the classical Iterative Closest Points (ICP) algorithm
@@ -39,11 +41,12 @@ We start by loading and visualizing two meshes
 ```scala
 val mesh1 = MeshIO.readMesh(new java.io.File("datasets/Paola.stl")).get
 val group1 = ui.createGroup("Dataset 1")
-ui.show(group1, mesh1, "mesh1")
+val mesh1View = ui.show(group1, mesh1, "mesh1")
 
 val mesh2 = MeshIO.readMesh(new java.io.File("datasets/323.stl")).get
 val group2 = ui.createGroup("Dataset 2")
-ui.show(group2, mesh2, "mesh2")
+val mesh2View = ui.show(group2, mesh2, "mesh2")
+mesh2View.color = java.awt.Color.RED
 ```
 
 As you can see here, the meshes are not aligned. As in previous tutorials, we could identify corresponding points
@@ -97,7 +100,8 @@ retrieve a rigid transformation, which brings us closer to the target.
 ```scala
 val rigidTrans =  LandmarkRegistration.rigid3DLandmarkRegistration(correspondences, center = Point3D(0, 0, 0))
 val transformed = mesh1.transform(rigidTrans) 
-ui.show(group1, transformed, "aligned?")
+val alignedMeshView = ui.show(group1, transformed, "aligned?")
+alignedMeshView.color = java.awt.Color.GREEN
 ```
 
 **Well, no surprise here.** Given the poor quality of the candidate correspondences, we obtained a poor rigid alignment.
@@ -113,7 +117,8 @@ ui.show(group2, newClosestPoints.toIndexedSeq, "newCandidateCorr")
 val newRigidTransformation = 
     LandmarkRegistration.rigid3DLandmarkRegistration(newCorrespondences, center = Point3D(0, 0, 0))
 val newTransformed = transformed.transform(newRigidTransformation) 
-ui.show(group2, newTransformed, "aligned??")
+val alignedMeshView2 =  ui.show(group2, newTransformed, "aligned??")
+alignedMeshView2.color = java.awt.Color.BLUE
 ```
 
 As you can see, the candidate correspondences are still clearly wrong,
@@ -141,7 +146,8 @@ Let's now run it with 150 iterations:
 ```scala
 
 val rigidfit = ICPRigidAlign(mesh1, ptIds, 150)
-ui.show(group1, rigidfit, "ICP_rigid_fit")
+val rigidFitView = ui.show(group1, rigidfit, "ICP_rigid_fit")
+rigidFitView.color = java.awt.Color.YELLOW
 ```
 
 As you can see here, the quality of the candidate correspondences did indeed result in a proper
