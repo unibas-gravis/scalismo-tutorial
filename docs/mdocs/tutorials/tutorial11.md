@@ -1,3 +1,5 @@
+{% include head.html %}
+
 # Model fitting with Iterative Closest Points
 
 The goal in this tutorial is to non-rigidly fit a shape model to a target surface using Iterative Closest Points (ICP) 
@@ -48,28 +50,29 @@ val modelGroup = ui.createGroup("modelGroup")
 val modelView = ui.show(modelGroup, model, "model")
 ```
 
-As you can see in the 3D scene, we are currently displaying an instance of our model (the mean), 
-does not resemble the target face. The goal in shape model fitting is therefore to find an 
+As you can see in the 3D scene, the instance of the model taht we are currently displaying (the mean), 
+does not resemble the target face. The goal in shape model fitting is to find an 
 instance of our shape model, which resembles at best the given target face.
-As we will see, a good fit allows us to find good correspondences between the points of our model. 
+As we will see, a good fit directly leads to a way of establishing correspondences between the points of our model and the points 
+of the target shape. 
 
 ### Iterative Closest Points (ICP) and GP regression
 
 In a previous tutorial, we introduced rigid ICP to find the best rigid transformation between two meshes. 
 We recall that the main steps of the algorithms are as follows:
 
-1. find **candidate** correspondences between the mesh to be aligned and the target one, 
+1. Find **candidate** correspondences between the mesh to be aligned and the target one, 
    by attributing the closest point on the target mesh as a candidate.
-2. solve for the best rigid transform between the moving mesh and the target mesh using Procrustes analysis.
-3. transform the moving mesh using the retrieved transform 
-4. loop to step 1 if the result is not aligned with the target (or if we didn't reach the limit number of iterations)
+2. Solve for the best rigid transform between the moving mesh and the target mesh using Procrustes analysis.
+3. Transform the moving mesh using the retrieved transform 
+4. Loop to step 1 if the result is not aligned with the target (or if we didn't reach the limit number of iterations)
 
-The non-rigid ICP algorithm, which we can use for model fitting, will perform exactly the same steps 
-but instead of finding a rigid transformation in step 2, it finds a non-rigid one, using 
+The non-rigid ICP algorithm, which we can use for model fitting, will perform exactly the same steps. 
+However, instead of finding a rigid transformation in step 2, it finds a non-rigid one, using 
 Gaussian process regression.
 
 
-We start by first selecting the points for which we want to find the correspondences. We choose uniformely distributed
+We start by first selecting the points for which we want to find the correspondences. We choose uniformly distributed
  points on the surface, which we can obtain as follows:
 
 ```scala mdoc:silent
@@ -148,7 +151,18 @@ val correspondingPointIds = finalFit.pointSet.pointsWithId.map(fitPointWithId =>
     }) 
 ```
 
+From these, we can build a new triangle mesh, which corresponds exactly to the target mesh, but is in correspondence
+with our model:
+```scala mdoc:silent
+val newTargetPoints = correspondingPointIds.map( correspondingPointIds => {
+    val (modelId, targetPointId) = correspondingPointIds
+    targetMesh.pointSet.point(targetPointId)
+})
 
+val newTargetMesh = TriangleMesh3D(UnstructuredPointsDomain[_3D](newTargetPoints.toIndexedSeq), model.referenceMesh.triangulation)
+val newTargetMeshView = ui.show(resultGroup, newTargetMesh, "new target mesh")
+ 
+```
 
 ```scala mdoc:invisible
 ui.close()
