@@ -6,9 +6,10 @@ Originally, these tutorials were designed as part of the Open Online Course [Sta
 Each tutorial contains links to videos and articles from the online course, which will 
 provide some theoretical background. 
 
-### Data
+### Preparation
 
-The datasets used in these tutorials can downloaded from [here](https://drive.switch.ch/index.php/s/zOJDpqh2ZGxzJJH). 
+To run the code in the tutorials, you will need to setup a project using the latest scalismo version. How to do this is described on [this page](https://github.com/unibas-gravis/scalismo/wiki/Setup-a-project-using-Scalismo).
+You will also need to [download](https://drive.switch.ch/index.php/s/zOJDpqh2ZGxzJJH) the datasets used in the tutorials and unzip them into your project folder. 
 
 ### Tutorials
 
