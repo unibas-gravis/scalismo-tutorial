@@ -8,7 +8,21 @@ provide some theoretical background.
 
 ### Preparation
 
-To run the code in the tutorials, you will need to setup a project using the latest scalismo version. How to do this is described on [this page](https://github.com/unibas-gravis/scalismo/wiki/Setup-a-project-using-Scalismo).
+To run the code in the tutorials, you will need to setup a Scala project, 
+ which depends on the latest scalismo version. 
+
+If you are new to Scala and are have never worked with Scala in an IDE, 
+follow the instructions in the guide [Using Scalismo in an IDE](ide.html) to 
+set up a project and programming environment. To use Scala in an existing project, simply add the following lines to
+your ```build.sbt```.
+
+```scala
+resolvers += Resolver.bintrayRepo("unibas-gravis", "maven")
+
+libraryDependencies ++=
+  Seq("ch.unibas.cs.gravis" %% "scalismo-ui" % "0.13.0")
+```
+
 You will also need to [download](https://drive.switch.ch/index.php/s/zOJDpqh2ZGxzJJH) the datasets used in the tutorials and unzip them into your project folder. 
 
 ### Tutorials
