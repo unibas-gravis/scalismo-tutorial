@@ -14,7 +14,7 @@ resolvers += Opts.resolver.sonatypeSnapshots
 
 libraryDependencies  ++= Seq(
             "ch.unibas.cs.gravis" % "scalismo-native-all" % "4.0.0",
-            "ch.unibas.cs.gravis" %% "scalismo-ui" % "0.13-RC1"
+            "ch.unibas.cs.gravis" %% "scalismo-ui" % "0.13"
 )
 
 lazy val root = (project in file("."))
