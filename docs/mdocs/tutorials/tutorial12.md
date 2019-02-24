@@ -1,29 +1,40 @@
 {% include head.html %}
 
-# Active Shape Model fitting
+# Parametric, non-rigid registration:
 
-In this tutorial we show how we can perform active shape model fitting in Scalismo.
+We have seen how non-rigid ICP can be used to establish correspondences. 
+In this tutorial we discuss a different approach to model-fitting and non-rigid registration. 
+We are formulating the registration problem as an optimization problem, which we optimize
+using gradient-based optimization. 
+
+This registration is more general than ICP, in the sense that it can not only
+be used for surface-to-surface registration, but also for image-to-image-registration.
+In this tutorial we show the complete work-flow involved in a typical registration task, 
+from building the Gaussian process model to performing the actual optimization. 
 
 ##### Related resources
 
 The following resources from our [online course](https://www.futurelearn.com/courses/statistical-shape-modelling) may provide
 some helpful context for this tutorial:
 
-- Fitting models to images [(Video)](https://www.futurelearn.com/courses/statistical-shape-modelling/3/steps/250379)
+- Model-fitting and correspondence [(Video)](https://www.futurelearn.com/courses/statistical-shape-modelling/3/steps/250371)
+
 
 ##### Preparation
 
-As in the previous tutorials, we start by importing some commonly used objects and initializing the system. 
+As in the previous tutorials, we start by importing some commonly used objects and initializing the system.
 
 ```scala mdoc:silent
-  import scalismo.geometry._
-  import scalismo.ui.api._
-  import scalismo.registration._
-  import scalismo.mesh.TriangleMesh
-  import scalismo.statisticalmodel.asm._
-  import scalismo.io.{ActiveShapeModelIO, ImageIO}
-  import breeze.linalg.{DenseVector}
-
+import scalismo.geometry._
+import scalismo.common._
+import scalismo.ui.api._
+import scalismo.mesh._
+import scalismo.registration._
+import scalismo.io.{MeshIO}
+import scalismo.numerics._
+import scalismo.kernels._
+import scalismo.statisticalmodel._
+import breeze.linalg.{DenseVector}
 
 scalismo.initialize()
 implicit val rng = scalismo.utils.Random(42)
@@ -31,201 +42,258 @@ implicit val rng = scalismo.utils.Random(42)
 val ui = ScalismoUI()
 ```
 
+## Loading and visualizing a mesh
 
-## Active Shape models in Scalismo 
-
-Scalismo provides full support for Active Shape models. This means we can use it to learn active shape models from 
-a set of images and corresponding contour, we can save these models, and we can use them to fit images. In this tutorial
-we will assume that the model has already been built and will only concentrate on model fitting. 
-
-
-We can load an Active Shape Model as follows:
+We start by loading and visualizing the reference mesh, which we will later use as the
+domain for our Gaussian Process model.
 
 ```scala mdoc:silent
-val asm = ActiveShapeModelIO.readActiveShapeModel(new java.io.File("datasets/femur-asm.h5")).get
+val referenceMesh = MeshIO.readMesh(new java.io.File("datasets/quickstart/facemesh.stl")).get
+
+val modelGroup = ui.createGroup("model")
+val refMeshView = ui.show(modelGroup, referenceMesh, "referenceMesh")
+refMeshView.color = java.awt.Color.RED
 ```
 
-An ActiveShapeModel instance in Scalismo is a combination of a statistical shape model and an intensity model. 
-Using the method ```statisticalModel```, we can obtain the shape model part. Let's visualize this model:
+## Building a Gaussian process shape model
+
+We assume that our reference surface represents an approximately average face. 
+This justifies the use of a zero-mean Gaussian process. As a covariance function we use a Gaussian kernel and choose to treat the x,y,z component
+of the vector field to be uncorrelated (indicated by the use of the ```DiagonalKernel```).
 
 ```scala mdoc:silent
-val modelGroup = ui.createGroup("modelGroup") 
-val modelView = ui.show(modelGroup, asm.statisticalModel, "shapeModel")
+val mean = VectorField(RealSpace[_3D], (_ : Point[_3D]) => EuclideanVector.zeros[_3D])
+val kernel = DiagonalKernel[_3D](GaussianKernel(sigma = 70) * 50.0, outputDim = 3)
+val gp = GaussianProcess(mean, kernel)
 ```
 
-The second part of the model is the intensity model. This model consists of a set of profiles, 
-which are attached to specific vertices of the shape model, indicated by the ```pointId```.
-For each profile, a probability distribution is defined. This distribution represent the intensity variation that we 
-expect for this profile.  
+We then perform a low-rank approximation, to get a parametric representation of the
+Gaussian process:
 
-The following code shows how this information can be accessed:  
 ```scala mdoc:silent
-    val profiles = asm.profiles
-    profiles.map(profile => {
-        val pointId = profile.pointId
-        val distribution = profile.distribution
-    })
+val lowRankGP = LowRankGaussianProcess.approximateGPCholesky(
+    referenceMesh.pointSet,
+    gp, 
+    relativeTolerance = 0.05,
+    interpolator = NearestNeighborInterpolator()
+    )
 ```
 
-#### Finding likely model correspondences in an image
+To visualize the effect of this Gaussian process, we add it to the 
+model group as a transformation. 
+```scala mdoc:silent
+val gpView = ui.addTransformation(modelGroup, lowRankGP, "gp")
+```
 
-The main usage of the profile distribution is to identify the points in the image, which are most likely to correspond to the given profile points in the model. 
-More precisely, let $$p_i$$ denote the i-th profile in the model. We can use the information to evaluate for any set of points
-$(x_1, \ldots, x_n)$, how likely it is that a point $x_j$ corresponds to the profile point $p_i$, based on the image intensity patterns 
-$$\rho(x_1), \ldots, \rho(x_n)$$ we find at these points in an image.  
+This has the effect, that the transformations represented by this GP, 
+are applied to all the geometric objects, which are present in the group. 
+In this case, it is the mean of the Gaussian process, which is applied to
+the reference mesh we loaded previously. By changing the parameters in the 
+ui, we can visualize different transformations, as we did previously 
+for statistical shape models. 
 
-To illustrate this, we first load an image: 
+*Note: Adding the reference mesh to the scene, followed by a Gaussian process transformation
+is indeed what happend internally, we visualized Statistical Shape Models in the 
+previous tutorials* 
+
+Having visualized the Gaussian process, we can now draw random samples, 
+to assess whether out choice of parameters of the Gaussian process leads to 
+reasonable deformations. If not, we adjust the parameters until we are happy
+with the deformations that are modelled.
+
+## Registration
+
+In the next step we perform the registration to a target mesh. 
+We start by loading the target mesh and displaying it.
 
 ```scala mdoc:silent
-val image = ImageIO.read3DScalarImage[Short](new java.io.File("datasets/femur-image.nii")).get.map(_.toFloat)
 val targetGroup = ui.createGroup("target")
-
-val imageView = ui.show(targetGroup, image, "image")
+val targetMesh = MeshIO.readMesh(new java.io.File("datasets/quickstart/face-2.stl")).get
+val targetMeshView = ui.show(targetGroup, targetMesh, "targetMesh")
 ```
 
-The ASM implementation in Scalismo, is not restricted to work with the raw intensities, but the active shape model may first apply some preprocessing, 
- such as smooth, applying a gradient transform, etc.  Thus in a first step we obtain this preprocess iamge uing the prepocessor method of the ```asm``` object:
+*To visualize a registration, it is best to change the perspective in the graphical user interface to "orthogonal slices". You can find this functionality in the "View -> Perspective" menu.*
+
+To define a registration, we need to define four things:
+1. a `transformation space` that models the possible transformations of the reference surface (or the ambient space)
+2. a `metric` to measure the distance between the model (the deformed reference mesh) an the target surface.
+3. a `regularizer`, which penalizes unlikely transformations.
+4. an `optimizer`.
+
+For non-rigid registration we usually model the possible transformations using a Gaussian process. We use the Gaussian process that
+we have defined above to define the transformation space.
 
 ```scala mdoc:silent
-val preprocessedImage = asm.preprocessor(image)
+val transformationSpace = GaussianProcessTransformationSpace(lowRankGP)
 ```
 
-We can now extract features at a given point:
-```scala mdoc:silent
-val point1 = image.domain.origin + EuclideanVector(10.0, 10.0, 10.0)
-val profile = asm.profiles.head
-val feature1 : DenseVector[Double] = asm.featureExtractor(preprocessedImage, point1, asm.statisticalModel.mean, profile.pointId).get
-```
-Here we specified the preprocessed image, a point in the image where whe want the evaluate the feature vector, a mesh instance and a point id for the mesh. 
-The mesh instance and point id are needed, since a feature extractor might choose to extract the feature based on mesh information, such as the normal direction 
-of a line at this point. 
-
-We can retrieve the likelihood that each corresponding point corresponds to a given profile point:
+As a metric, we use a simple mean squares metric. Currently, all metrics that are available in scalismo are implemented as
+image to image metrics. These can, however, easily be used for surface registration by representing the surface as  a distance image.
+In addition to the images, the metric also needs to know the possible transformations (as modelled by the transformation space) and
+a sampler. The sampler determines the points where the metric is evaluated. In our case we choose uniformely sampled points on the
+reference mesh.
 
 ```scala mdoc:silent
-val point2 = image.domain.origin + EuclideanVector(20.0, 10.0, 10.0)
-val featureVec1 = asm.featureExtractor(preprocessedImage, point1, asm.statisticalModel.mean, profile.pointId).get
-val featureVec2 = asm.featureExtractor(preprocessedImage, point2, asm.statisticalModel.mean, profile.pointId).get
-
-val probabilityPoint1 = profile.distribution.logpdf(featureVec1)
-val probabilityPoint2 = profile.distribution.logpdf(featureVec2)
+val fixedImage = referenceMesh.operations.toDistanceImage
+val movingImage = targetMesh.operations.toDistanceImage
+val sampler = UniformMeshSampler3D(referenceMesh, numberOfPoints = 1000)
+val metric = MeanSquaresMetric(fixedImage, movingImage, transformationSpace, sampler)
 ```
 
-Based on this information, we can decide, which point is more likely to correspond to the model point. This idea forms the 
-basis of the original m Active Shape Model Fitting algorithm.
+As an optimizer, we choose an LBFGS Optimizer
 
-
-### The original Active Shape Model Fitting
-
-Scalismo features an implementation of Active Shape Model fitting algorithm, as proposed by [Cootes and Taylor](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.141.3089&rep=rep1&type=pdf).
-
-To configure the fitting process, we need to set up a search method, which searches for a given model point, corresponding  points
-in the image. From these points, the most likely point is select and used as as the corresponding point for one iteration of
-the algorithm. Once these "candidate correspondences" have been established, the rest of the algorithm works in exactly the same as 
-the ICP algorithm that we described in the previous tutorials.
-
-One search strategy that is already implemented in Scalismo is to search along
-the normal direction of a model point. This behavior is provided by the ```NormalDirectionSearchPointSampler``` 
 ```scala mdoc:silent
- val searchSampler = NormalDirectionSearchPointSampler(numberOfPoints = 100, searchDistance = 3)
+val optimizer = LBFGSOptimizer(maxNumberOfIterations = 100)
 ```
 
-In addition to the search strategy, we can specify some additional configuration parameters to control the fitting process:
+and for regularization we choose to penalize the L2 norm using the `L2Regularizer`:
+
 ```scala mdoc:silent
-    val config = FittingConfiguration(featureDistanceThreshold = 3, pointDistanceThreshold = 5, modelCoefficientBounds = 3)
-```
-The first parameter determines how far away (as measured by the mahalanobis distance) an intensity feature can be, such that it is still 
-chosen as corresponding. The ```pointDistanceThreshold``` does the same for the distance of the points; I.e. in this  case points which are 
-more than 5 standard deviations aways are not chosen as corresponding points. The last parameters determines how 
-large coefficients of the model can become in the fitting process. Whenever a model parameter is larger than this threshold, 
-it will be set back to this maximal value. This introduces a regularization into the fitting, which prevents the shape
-from becoming too unlikely. 
- 
-The ASM fitting algorithm optimizes both the pose (as defined by a rigid transformation) and the shape. 
-In order to allow it to optimize the rotation, it is important that we choose a rotation center, which is approximately
-the center of mass of the model: 
-```scala mdoc:silent
-    // make sure we rotate around a reasonable center point
-    val modelBoundingBox = asm.statisticalModel.referenceMesh.boundingBox
-    val rotationCenter = modelBoundingBox.origin + modelBoundingBox.extent * 0.5    
+val regularizer = L2Regularizer(transformationSpace)
 ```
 
-To initialize the fitting process, we also need to set up the initial transformation:
+We are now ready to define Scalismo's registration object.
+
 ```scala mdoc:silent
-    // we start with the identity transform
-    val translationTransformation = TranslationTransform(EuclideanVector(0, 0, 0))
-    val rotationTransformation = RotationTransform(0, 0, 0, rotationCenter)
-    val initialRigidTransformation = RigidTransformation(translationTransformation, rotationTransformation)
-    val initialModelCoefficients = DenseVector.zeros[Double](asm.statisticalModel.rank)
-    val initialTransformation = ModelTransformations(initialModelCoefficients, initialRigidTransformation)
+val registration = Registration(metric, regularizer, regularizationWeight = 1e-5, optimizer)
 ```
 
-To start the fitting, we obtain an iterator, which we subsequently use to drive the iteration. 
+Registration is an iterative process. Consequently, we work with the registration using an iterator. We obtain an iterator by
+calling the `iterator` method, where we also provide a starting position for the iteration (which is in this case the zero vector):
+
 ```scala mdoc:silent
- 
-    val numberOfIterations = 20
-    val asmIterator = asm.fitIterator(image, searchSampler, numberOfIterations, config, initialTransformation)
+val initialCoefficients = DenseVector.zeros[Double](lowRankGP.rank)
+val registrationIterator = registration.iterator(initialCoefficients)
 ```
 
-Especially in a debugging phase, we want to visualize the result in every iteration. The following code shows, 
-how we can obtain a new iterator, which updates the pose transformation and model coefficients in the ```ui```
-in every iteration:
-```scala mdoc:silent
-    val asmIteratorWithVisualization = asmIterator.map(it => {
-      it match {
-        case scala.util.Success(iterationResult) => {
-          modelView.shapeModelTransformationView.poseTransformationView.transformation = iterationResult.transformations.rigidTransform
-          modelView.shapeModelTransformationView.shapeTransformationView.coefficients = iterationResult.transformations.coefficients
-        }
-        case scala.util.Failure(error) => System.out.println(error.getMessage)
-      }
-      it
-    })   
-```
- 
-To run the fitting, and get the result, we finally consume the iterator:
-```scala mdoc:silent
-val result = asmIteratorWithVisualization.toIndexedSeq.last
-val finalMesh = result.get.mesh
-``` 
-
-## Evaluating the likelihood of a model instance under the image
-
-In the previous section we have used the intensity distribution to find the best corresponding image point to a 
-given point in the model. Sometimes we are also interested in finding out how well a model fits an image. 
-To compute this, we can extend the method used above to compute the likelihood for all profile points of an Active Shape Model. 
-
-Given the model instance, we will get the position of each profile point in the current instance, 
-evaluate its likelihood and then compute the joint likelihood for all profiles. Assuming independence, the joint probability is just the product of the probability at the individual profile points.
-In order not to get too extreme values, we use log probabilities here (and consequently the product becomes a sum).
+Before running the registration, we change the iterator such that it prints in each iteration to current objective value,
+and updates the visualization. This lets us visually inspect the progress of the registration procedure.
 
 ```scala mdoc:silent
-def likelihoodForMesh(asm : ActiveShapeModel, mesh : TriangleMesh[_3D], preprocessedImage: PreprocessedImage) : Double = {
-
-    val ids = asm.profiles.ids
-
-    val likelihoods = for (id <- ids) yield {
-        val profile = asm.profiles(id)
-        val profilePointOnMesh = mesh.pointSet.point(profile.pointId)
-        val featureAtPoint = asm.featureExtractor(preprocessedImage, profilePointOnMesh, mesh, profile.pointId).get
-        profile.distribution.logpdf(featureAtPoint)
-    }
-    likelihoods.sum
+val visualizingRegistrationIterator = for ((it, itnum) <- registrationIterator.zipWithIndex) yield {
+  println(s"object value in iteration $itnum is ${it.value}")
+  gpView.coefficients = it.parameters
+  it
 }
 ```
 
-This method allows us to compute for each mesh, represented by the model, how likely it is to correspond
-to the given image.  
+Note that the above code does not yet run the registration. It simply returns a new iterator, which augments
+the original iteration with visualization. The actual registration is executed once we "consume" the iterator.
+This can, for example be achieved by converting it to a sequence. The resulting sequence holds all the intermediate
+states of the registration. We are usually only interested in the last one:
+
 ```scala mdoc:silent
-val sampleMesh1 = asm.statisticalModel.sample 
-val sampleMesh2 = asm.statisticalModel.sample
-println("Likelihood for mesh 1 = " + likelihoodForMesh(asm, sampleMesh1, preprocessedImage))
-println("Likelihood for mesh 2 = " + likelihoodForMesh(asm, sampleMesh2, preprocessedImage))
+val registrationResult = visualizingRegistrationIterator.toSeq.last
 ```
 
-This information is all that is need to write probabilistic fitting methods methods using Markov Chain Monte Carlo
-methods, which will be discussed in a later tutorial. 
+You should see in the graphical user interface, how the face mesh slowly adapts to the shape of the target mesh.
 
+The final mesh representation can be obtained by obtaining the transform corresponding to the parameters and to
+warp the reference mesh with this tranform:
+
+```scala mdoc:silent
+val registrationTransformation = transformationSpace.transformForParameters(registrationResult.parameters)
+val fittedMesh = referenceMesh.transform(registrationTransformation)
+```
+
+### Working with the registration result
+
+The fittedMesh that we obtained above is a surface that approximates the target surface.  It corresponds to the best representation of the target in the model. For most tasks, this approximation is sufficient.
+However, sometimes, we need an exact representation of the target mesh. This can be achieved by defining a projection function, which projects each point onto its closest point on the target.
+
+```scala mdoc:silent
+val targetMeshOperations = targetMesh.operations
+val projection = (pt : Point[_3D]) => {
+  targetMeshOperations.closestPointOnSurface(pt).point
+}
+```
+
+Composing the result of the registration with this projection, will give us a mapping that identifies for each point of the reference mesh the corresponding point of the target mesh.
+
+```scala mdoc:silent
+val finalTransformation = registrationTransformation.andThen(projection)
+```
+
+To check this last point, we warp the reference mesh with the finalTransform and visualize it. Note that the projected target now coincides with the target mesh..
+
+```scala mdoc:silent
+val projectedMesh = referenceMesh.transform(finalTransformation)
+val resultGroup = ui.createGroup("result")
+val projectionView = ui.show(resultGroup, projectedMesh, "projection")
+```
+
+### Improving registrations for more complex shapes.
+
+This registration procedure outlined above works reasonably well for simple cases. In complex cases, in particular if you have large
+shape variations, you may find it difficult to find a suitable regularization weight. When you choose the regularization weight
+large, the procedure will result in a nice and smooth mesh, but fails to closely fit the surface. If you choose it small, it may
+result in folds and bad correspondences. In such cases it has proven extremely useful to simply iterate the registration procedure,
+with decreasing regularization weights. In the following we illustrate this procedure. We start by defining a case class, which
+collects all relevant parameters:
+
+```scala mdoc:silent
+case class RegistrationParameters(regularizationWeight : Double, numberOfIterations : Int, numberOfSampledPoints : Int)
+```
+
+We put all the registration code into a function, which takes (among others) the registration parameters as an argument.
+
+```scala mdoc:silent
+def doRegistration(
+            lowRankGP : LowRankGaussianProcess[_3D, EuclideanVector[_3D]],
+            referenceMesh : TriangleMesh[_3D],
+            targetmesh : TriangleMesh[_3D],
+            registrationParameters : RegistrationParameters,
+            initialCoefficients : DenseVector[Double]
+        ) : DenseVector[Double] =
+    {
+        val transformationSpace = GaussianProcessTransformationSpace(lowRankGP)
+        val fixedImage = referenceMesh.operations.toDistanceImage
+        val movingImage = targetMesh.operations.toDistanceImage
+        val sampler = UniformMeshSampler3D(
+            referenceMesh,
+            registrationParameters.numberOfSampledPoints
+            )
+        val metric = MeanSquaresMetric(
+            fixedImage,
+            movingImage,
+            transformationSpace,
+            sampler
+            )
+        val optimizer = LBFGSOptimizer(registrationParameters.numberOfIterations)
+        val regularizer = L2Regularizer(transformationSpace)
+        val registration = Registration(
+            metric,
+            regularizer,
+            registrationParameters.regularizationWeight,
+            optimizer
+            )
+        val registrationIterator = registration.iterator(initialCoefficients)
+        val visualizingRegistrationIterator = for ((it, itnum) <- registrationIterator.zipWithIndex) yield {
+              println(s"object value in iteration $itnum is ${it.value}")
+              gpView.coefficients = it.parameters
+              it
+        }
+        val registrationResult = visualizingRegistrationIterator.toSeq.last
+        registrationResult.parameters
+    }
+```
+
+Finally, we define the parameters and run the registration. Note that when we decrease the
+regularization weight, we typically need to sample less points from the surface.
+
+```scala mdoc:silent
+val registrationParameters = Seq(
+        RegistrationParameters(regularizationWeight = 1e-1, numberOfIterations = 20, numberOfSampledPoints = 1000),
+        RegistrationParameters(regularizationWeight = 1e-2, numberOfIterations = 30, numberOfSampledPoints = 1000),
+        RegistrationParameters(regularizationWeight = 1e-4, numberOfIterations = 40, numberOfSampledPoints = 2000),
+        RegistrationParameters(regularizationWeight = 1e-6, numberOfIterations = 50, numberOfSampledPoints = 4000)
+    )
+
+    val finalCoefficients = registrationParameters.foldLeft(initialCoefficients)((modelCoefficients, regParameters) =>
+            doRegistration(lowRankGP, referenceMesh, targetMesh, regParameters, modelCoefficients))
+```
+
+From this point we use the procedure described above to work with the registration result.
 ```scala mdoc:invisible
-ui.close
+ui.close()
 ```
