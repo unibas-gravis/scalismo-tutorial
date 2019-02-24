@@ -38,11 +38,11 @@ You will also need to [download](https://drive.switch.ch/index.php/s/zOJDpqh2ZGx
 * [Tutorial 9](tutorials/tutorial9.html): Shape completion using Gaussian process regression
 * [Tutorial 10](tutorials/tutorial10.html): Iterative Closest Points for rigid alignment
 * [Tutorial 11](tutorials/tutorial11.html): Model fitting with Iterative Closest Points
-* [Tutorial 12](tutorials/tutorial12.html): Active Shape Models
+* [Tutorial 12](tutorials/tutorial12.html): Parametric, non-rigid registration 
+* [Tutorial 13](tutorials/tutorial13.html): Active Shape Models
 
 
-### Quickstart
 
-For a whirlwind tour on Scalismo, which includes everything from building Gaussian process models to parametric,
-gradient-based surface-registration, checkout our [Quickstart Guide](./quickstart.html).
-  
+### Other guides
+
+* [Visualizing with *Scalismo-ui*](scalismo-ui-introduction.html) 
