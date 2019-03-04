@@ -37,7 +37,7 @@ to a set of data points. We generate the data, which we denote in the following 
 ```
 Assuming a normal model, our goal is to infer the unknown parameters $$\mu$$ and $$\sigma$$ of the normal distribution from 
 this data. Denoting the unknown parameters as $\theta = (\mu, \sigma)^T$, the task is to estimate the *posterior distribution*
-$$p(\theta | y) = \frac{p(\theta) p(y | \theta)}{p(y)}$$ where $$p(theta)$$ is a prior distribution over the parameters, 
+$$p(\theta | y) = \frac{p(\theta) p(y | \theta)}{p(y)}$$ where $$p(\theta)$$ is a prior distribution over the parameters, 
 which we will define later.
 
 *Remark: In a shape model fitting application, the parameters $$\theta$$ are all the model parameters and the data $$y$$ are 
@@ -57,8 +57,10 @@ distribution can be evaluated point-wise. To make the algorithm work, we need
  target distribution. 
  
 Hence to make this algorithm work in Scalismo, we need to define:
-1. The (unnormalized) target distribution, from which we want to sample. Here, this is the posterior distribution $$p(\theta | y)$$. 
+
+1. The (unnormalized) target distribution, from which we want to sample.  
 2. The proposal generator
+
 
 Before we discuss these components in detail, we first define a class for representing 
 the parameters $$\theta = (\mu, \sigma)$$:
@@ -66,8 +68,8 @@ the parameters $$\theta = (\mu, \sigma)$$:
 case class Parameters(mu : Double, sigma: Double)
 ```
 
-We introduce a further class, to represent a sample from the chain. This sample is 
-simply a set of parameters, together with a tag, which helps us to keep track later
+We introduce a further class to represent a sample from the chain. A sample is 
+simply a set of parameters together with a tag, which helps us to keep track later
 on, which proposal generator generated the sample:
 ```scala mdoc:silent
  case class Sample(generatedBy : String,
@@ -92,10 +94,10 @@ In our case, we will define separate evaluators for the prior distribution $$p(\
 The evaluator for the likelihood is simple: Assuming a normal model, we define
 the normal distribution with the given parameters $$\theta$$, and use this model
 to evaluate the likelihood of the individual observations.  
-Assuming that the observations are i.i.d. and hence the joint probability
-factorizes,
-$$p(y |\theta) = p(y_1, \ldots, y_n |\theta) = \prod_{i=1}^n p(y_i |theta). $$
-we arrive at the following implementation
+We assume that the observations are i.i.d. and hence the joint probability
+factorises as
+$$p(y |\theta) = p(y_1, \ldots, y_n |\theta) = \prod_{i=1}^n p(y_i |\theta)$$.
+This leads to the following implementation of the liklihood function:
  
 ```scala mdoc:silent
   case class LikelihoodEvaluator(data : Seq[Double]) extends DistributionEvaluator[Sample] {
@@ -114,11 +116,10 @@ we arrive at the following implementation
 Notice that we work in Scalismo with log probabilities, and hence the product in above formula
 becomes a sum.
 
-As a prior, we also use a normal distribution. We treat both parameters
-as independent. 
+As a prior, we also use for both parameters a univariate normal distribution.
 
 ```scala mdoc:silent
-case class PriorEvaluator() extends DistributionEvaluator[Sample] {
+object PriorEvaluator extends DistributionEvaluator[Sample] {
 
     val priorDistMu = breeze.stats.distributions.Gaussian(0, 20)
     val priorDistSigma = breeze.stats.distributions.Gaussian(0, 100)
@@ -132,10 +133,8 @@ case class PriorEvaluator() extends DistributionEvaluator[Sample] {
 
 The target density (i.e. the posterior distribution) can be computed by 
 taking the product of the prior and the likelihood. 
-```scala mdoc:silent
-  val priorEvaluator = PriorEvaluator()
-  val likelihoodEvaluator = LikelihoodEvaluator(data)
-  val posteriorEvaluator = ProductEvaluator(priorEvaluator, likelihoodEvaluator)
+```scala mdoc:silent 
+  val posteriorEvaluator = ProductEvaluator(PriorEvaluator, LikelihoodEvaluator(data))
 ```
 Note that the posteriorEvaluator represents the unnormalized posterior, as we did 
 not normalize by the probability of the data $$p(y)$$. 
@@ -255,12 +254,23 @@ see a practical example.
 Sometimes a chain does not work as expected. The reason is usually that our proposals
 are not suitable for the target distribution. To diagnose the 
 behaviour of the chain we can introduce a logger. To write a logger, we need to extend
- the from the trait 
-```AcceptRejectLogger```.
+ the trait ```AcceptRejectLogger``` defined as follows:
+ 
+```scala 
+trait AcceptRejectLogger[A] {
+  def accept(current: A, sample: A, generator: ProposalGenerator[A], evaluator: DistributionEvaluator[A]): Unit
+
+  def reject(current: A, sample: A, generator: ProposalGenerator[A], evaluator: DistributionEvaluator[A]): Unit
+}
+```
+The two methods, ```accept``` and ```reject``` are called whenever a sample is 
+accepted or rejected. We can overwrite these methods to implement our debugging code.
+
 
 The following, very simple logger counts all the accepted and rejected samples and
-computes the ratio. The acceptance ratio, which is ideally around 25%, already
-gives us an indication what goes on. 
+computes the acceptance ratio. This acceptance ratio is a simple, but already useful 
+indicator to diagnose if all proposal generators function as expected.
+ 
 ```scala mdoc:silent
   class Logger extends AcceptRejectLogger[Sample] {
     private val numAccepted = collection.mutable.Map[String, Int]()
@@ -313,7 +323,7 @@ We can now check how often the individual samples got accepted.
 ```
 We see that the acceptance ratio of the random walk proposal, which takes the 
 smaller step is quite high, but that the larger step is often rejected. We might
-therefore want to reduce this step size slighly, as a proposal that is so often 
+therefore want to reduce this step size slightly, as a proposal that is so often 
 rejected is not very efficient. 
 
 In more complicated applications, this type of debugging is crucial for obtaining
