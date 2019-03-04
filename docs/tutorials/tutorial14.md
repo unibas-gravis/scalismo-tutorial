@@ -1,6 +1,6 @@
 {% include head.html %}
 
-# Bayesian Model Fitting - The basic framework
+# Model fitting using MCMC - The basic framework
 
 In this tutorial we show how Bayesian model fitting using Markov Chain Monte Carlo can be done in Scalismo. To be able
 to focus on the main components of the framework, we start in this tutorial with a simple toy example, which has nothing
@@ -236,8 +236,8 @@ which we then consume. To obtain the iterator, we need to specify the initial
 parameters:
 
 ```scala
-val initialParameters = Sample(generatedBy="initial", Parameters(0.0, 10.0))
-val mhIterator = chain.iterator(initialParameters)
+val initialSample = Sample(generatedBy="initial", Parameters(0.0, 10.0))
+val mhIterator = chain.iterator(initialSample)
 ```
 
 Our initial parameters might be far away from a high-probability area of our target
@@ -255,13 +255,13 @@ our data:
 
 ```scala
 val estimatedMean = samples.foldLeft(0.0)((sum, sample) => sum + sample.parameters.mu) / samples.size
-// estimatedMean: Double = -4.668958020063494
+// estimatedMean: Double = -4.37663340173097
   println("estimated mean is " + estimatedMean)
-// estimated mean is -4.668958020063494
+// estimated mean is -4.37663340173097
   val estimatedSigma = samples.foldLeft(0.0)((sum, sample) => sum + sample.parameters.sigma) / samples.size
-// estimatedSigma: Double = 17.628258954069544
+// estimatedSigma: Double = 16.224523082432246
   println("estimated sigma is " + estimatedSigma)
-// estimated sigma is 17.628258954069544
+// estimated sigma is 16.224523082432246
 ```
 
 In the next tutorial, we see an example of how the exact same  mechanism can be used for
@@ -336,7 +336,7 @@ a second argument to the ```iterator``` method:
 
 ```scala
 val logger = new Logger()
-val mhIteratorWithLogging = chain.iterator(initialParameters, logger)
+val mhIteratorWithLogging = chain.iterator(initialSample, logger)
  val samples2 = mhIteratorWithLogging.drop(1000).take(3000).toIndexedSeq  
 ```
 
@@ -344,7 +344,7 @@ We can now check how often the individual samples got accepted.
 
 ```scala
 println("acceptance ratio is " +logger.acceptanceRatios())
-// acceptance ratio is Map(randomWalkProposal (3.0, 1.0) -> 0.4667300380228137, randomWalkProposal (9.0, 3.0) -> 0.14709371293001186)
+// acceptance ratio is Map(randomWalkProposal (3.0, 1.0) -> 0.4317610062893082, randomWalkProposal (9.0, 3.0) -> 0.12942612942612944)
 ```
 
 We see that the acceptance ratio of the random walk proposal, which takes the

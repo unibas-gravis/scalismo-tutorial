@@ -1,6 +1,6 @@
 {% include head.html %}
 
-# Bayesian Model Fitting - The basic framework
+# Model fitting using MCMC - Fitting a shape model 
 
 In this tutorial we show how the MCMC framework, which was introduced in the previous
 tutorial can be used for shape model fitting. 
@@ -547,6 +547,18 @@ for ((id, _, _) <- newCorrespondences) {
   println(s"posterior variance computed by analytic posterior (shape only) for point with id $id = ${cov(0,0)}, ${cov(1,1)}, ${cov(2,2)}")
 }
 ```
+
+### Beyond landmark fitting
+
+We have shown above how Scalismo can be used to perform Bayesian model fitting on the example of fitting 3D landmarks. This example
+can easily be extended to other fitting tasks, such as fitting the model to points with unkown correspondences, fitting shapes in surfaces
+of fitting a model to an image using an Active Shape Model as a likelihood function. In principle, all that is required is to 
+ change the likelihood function and rerun the fit. 
+ In practice, however, as a change in the likelihood function can dramatically change the posterior density, it is often required 
+ to tune the proposals, such that good convergence can be achieved. Indeed, finding good proposal distributions is the key to 
+ applying this method successfully. The more prior knowledge about the target distribution we can incorporate into the proposals,
+ the faster will the chain converge to the equilibrium distribution.  
+
 
 ```scala mdoc:invisible
 ui.close()

@@ -40,6 +40,8 @@ You will also need to [download](https://drive.switch.ch/index.php/s/zOJDpqh2ZGx
 * [Tutorial 11](tutorials/tutorial11.html): Model fitting with Iterative Closest Points
 * [Tutorial 12](tutorials/tutorial12.html): Parametric, non-rigid registration 
 * [Tutorial 13](tutorials/tutorial13.html): Active Shape Models
+* [Tutorial 14](tutorials/tutorial14.html): Model fitting using MCMC - The basic framework
+* [Tutorial 15](tutorials/tutorial15.html): Model fitting using MCMC - Fitting a shape model 
 
 
 

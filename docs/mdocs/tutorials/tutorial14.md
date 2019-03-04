@@ -1,6 +1,6 @@
 {% include head.html %}
 
-# Bayesian Model Fitting - The basic framework
+# Model fitting using MCMC - The basic framework
 
 In this tutorial we show how Bayesian model fitting using Markov Chain Monte Carlo can be done in Scalismo. To be able
 to focus on the main components of the framework, we start in this tutorial with a simple toy example, which has nothing
@@ -220,8 +220,8 @@ which we then consume. To obtain the iterator, we need to specify the initial
 parameters:
 
 ```scala mdoc:silent
-  val initialParameters = Sample(generatedBy="initial", Parameters(0.0, 10.0))
-  val mhIterator = chain.iterator(initialParameters)
+  val initialSample = Sample(generatedBy="initial", Parameters(0.0, 10.0))
+  val mhIterator = chain.iterator(initialSample)
 ```
 
 Our initial parameters might be far away from a high-probability area of our target 
@@ -312,7 +312,7 @@ To use the logger, we simply rerun the chain, but pass the logger now as
 a second argument to the ```iterator``` method:
 ```scala mdoc:silent
   val logger = new Logger()
-  val mhIteratorWithLogging = chain.iterator(initialParameters, logger)
+  val mhIteratorWithLogging = chain.iterator(initialSample, logger)
    
   val samples2 = mhIteratorWithLogging.drop(1000).take(3000).toIndexedSeq  
 ```
