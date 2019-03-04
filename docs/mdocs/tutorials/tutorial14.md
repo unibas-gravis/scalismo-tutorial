@@ -66,6 +66,14 @@ the parameters $$\theta = (\mu, \sigma)$$:
 case class Parameters(mu : Double, sigma: Double)
 ```
 
+We introduce a further class, to represent a sample from the chain. This sample is 
+simply a set of parameters, together with a tag, which helps us to keep track later
+on, which proposal generator generated the sample:
+```scala mdoc:silent
+ case class Sample(generatedBy : String,
+                   parameters : Parameters)
+```
+
 #### Evaluators: Modelling the target density
 
 In Scalismo, the target density is represented by classes, which we will refer to 
@@ -90,16 +98,18 @@ $$p(y |\theta) = p(y_1, \ldots, y_n |\theta) = \prod_{i=1}^n p(y_i |theta). $$
 we arrive at the following implementation
  
 ```scala mdoc:silent
-case class LikelihoodEvaluator(data : Seq[Double]) extends DistributionEvaluator[Parameters] {
+  case class LikelihoodEvaluator(data : Seq[Double]) extends DistributionEvaluator[Sample] {
 
-    override def logValue(theta: Parameters): Double = {
-      val likelihood = breeze.stats.distributions.Gaussian(theta.mu, theta.sigma)
+    override def logValue(theta: Sample): Double = {
+      val likelihood = breeze.stats.distributions.Gaussian(
+        theta.parameters.mu, theta.parameters.sigma
+      )
       val likelihoods = for (x <- data) yield {
         likelihood.logPdf(x)
       }
       likelihoods.sum
     }
-}
+  }
 ```
 Notice that we work in Scalismo with log probabilities, and hence the product in above formula
 becomes a sum.
@@ -108,13 +118,14 @@ As a prior, we also use a normal distribution. We treat both parameters
 as independent. 
 
 ```scala mdoc:silent
-  case class PriorEvaluator() extends DistributionEvaluator[Parameters] {
+case class PriorEvaluator() extends DistributionEvaluator[Sample] {
 
     val priorDistMu = breeze.stats.distributions.Gaussian(0, 20)
     val priorDistSigma = breeze.stats.distributions.Gaussian(0, 100)
 
-    override def logValue(theta: Parameters): Double = {
-      priorDistMu.logPdf(theta.mu) + priorDistSigma.logPdf(theta.sigma)
+    override def logValue(theta: Sample): Double = {
+      priorDistMu.logPdf(theta.parameters.mu)
+      + priorDistSigma.logPdf(theta.parameters.sigma)
     }
   }
 ```
@@ -153,30 +164,36 @@ which perturbs the current state by taking a step of random length in a random d
 It is defined as follows:
 ```scala mdoc:silent
 case class RandomWalkProposal(stddevMu: Double, stddevSigma : Double)(implicit rng : scalismo.utils.Random)
-    extends ProposalGenerator[Parameters] with TransitionProbability[Parameters] {
+    extends ProposalGenerator[Sample] with TransitionProbability[Sample] {
 
-    val perturbationDistrMu = breeze.stats.distributions.Gaussian(0, stddevMu)
-    val perturbationDistrSigma = breeze.stats.distributions.Gaussian(0, stddevSigma)
+    val stepDistMu = breeze.stats.distributions.Gaussian(0, stddevMu)
+    val stepDistSigma = breeze.stats.distributions.Gaussian(0, stddevSigma)
 
-    override def propose(theta: Parameters): Parameters = {
-      Parameters(
-        mu = theta.mu + rng.breezeRandBasis.gaussian(0, stddevMu).draw(),
-        sigma = theta.sigma + rng.breezeRandBasis.gaussian(0, stddevSigma).draw()
+    override def propose(sample: Sample): Sample = {
+      val newParameters = Parameters(
+        mu = sample.parameters.mu + rng.breezeRandBasis.gaussian(0, stddevMu).draw(),
+        sigma = sample.parameters.sigma + rng.breezeRandBasis.gaussian(0, stddevSigma).draw()
       )
+
+      Sample(s"randomWalkProposal ($stddevMu, $stddevSigma)", newParameters)
     }
 
-    override def logTransitionProbability(from: Parameters, to: Parameters) : Double = {
-      val residualMu = to.mu - from.mu
-      val residualSigma = to.sigma - from.sigma
-      perturbationDistrMu.logPdf(residualMu)  + perturbationDistrMu.logPdf(residualSigma)
+    override def logTransitionProbability(from: Sample, to: Sample) : Double = {
+      val residualMu = to.parameters.mu - from.parameters.mu
+      val residualSigma = to.parameters.sigma - from.parameters.sigma
+      stepDistMu.logPdf(residualMu)  + stepDistMu.logPdf(residualSigma)
     }
   }
 ```   
+*Remark: the second constructor argument ```implicit rng : scalismo.utils.Random```
+is used to automatically pass the globally defined random generator object to the
+class. If we always use this random generator to generate our random numbers, we can obtain reproducible runs,
+by seeding this random generator at the beginning of our program.*
 
 Let's define two random walk proposals with different step length:
 ```scala mdoc:silent
-val smallStepProposal = RandomWalkProposal(0.1, 0.5)
-val largeStepProposal = RandomWalkProposal(1, 5)
+val smallStepProposal = RandomWalkProposal(3.0, 1.0)
+val largeStepProposal = RandomWalkProposal(9.0, 3.0)
 ```
 Varying the step length allow us to sometimes take larger step, to explore the global
 landscape, and sometimes explore locally. We can combine these proposal into a 
@@ -185,7 +202,7 @@ probability. Here We choose to take the large step 20% of the time, and the smal
 steps 80% of the time:
 
 ```scala mdoc:silent
-val generator = MixtureProposal.fromProposalsWithTransition[Parameters](
+val generator = MixtureProposal.fromProposalsWithTransition[Sample](
     (0.8, smallStepProposal), 
     (0.2, largeStepProposal)
     )
@@ -199,66 +216,105 @@ Now that we have all the components set up, we can assemble the Markov Chain.
 val chain = MetropolisHastings(generator, posteriorEvaluator)
 ```
 
-Before we run the chain, we set up a logger, which let's us diagnose the
-behaviour of the chain. This is useful to understand how often the proposals
-are accepted or rejected. This is done by extending from the trait 
-```AcceptRejectLogger```
-
-```scala mdoc:silent
-  class Logger extends AcceptRejectLogger[Parameters] {
-    var numAccepted = 0
-    var numRejected = 0
-
-    override def accept(current: Parameters, sample: Parameters, generator: ProposalGenerator[Parameters], evaluator: DistributionEvaluator[Parameters]): Unit = {
-      numAccepted += 1
-    }
-    override def reject(current: Parameters, sample: Parameters, generator: ProposalGenerator[Parameters], evaluator: DistributionEvaluator[Parameters]): Unit = {
-      numRejected += 1
-    }
-    def acceptanceRatio() = {
-      numAccepted / (numAccepted + numRejected).toDouble
-    }
-  }
-```
-Here we simply compute the acceptance ratio. We could, however, use this logger, to 
-collect much more fine grained information about the chains. 
-
-We are finally ready to run the chain. This is done by obtaining an iterator, 
+To run the chain, we obtain an iterator, 
 which we then consume. To obtain the iterator, we need to specify the initial 
-parameters, as well as the logger:
+parameters:
 
 ```scala mdoc:silent
-  val initialParameters = Parameters(0.0, 10.0)
-  val logger = new Logger()
-  val mhIterator = chain.iterator(initialParameters, logger)
+  val initialParameters = Sample(generatedBy="initial", Parameters(0.0, 10.0))
+  val mhIterator = chain.iterator(initialParameters)
 ```
 
-Our initial parametes might be far away from a high-probability area of our target 
+Our initial parameters might be far away from a high-probability area of our target 
 density. Therefore it might take a few (hundred) iterations before the produced samples
 start to follow the required distribution. We therefore have to drop the 
 samples in this burn-in phase, before we use the samples:
 ```scala mdoc:silent
-  val thetas = mhIterator.drop(1000).take(3000).toIndexedSeq  
+  val samples = mhIterator.drop(1000).take(5000).toIndexedSeq  
 ```
 As we have generated synthetic data, we can check if the expected value, computed
 from this samples, really corresponds to the parameters from which we sampled
 our data: 
 ```scala mdoc
-  val estimatedMean = thetas.foldLeft(0.0)(
-    (sum, theta) => sum + theta.mu
-    ) / thetas.size
+  val estimatedMean = samples.foldLeft(0.0)((sum, sample) => sum + sample.parameters.mu) / samples.size
   println("estimated mean is " + estimatedMean)
-  val estimatedSigma = thetas.foldLeft(0.0)(
-  (sum, theta) => sum + theta.sigma
-  ) / thetas.size
+  val estimatedSigma = samples.foldLeft(0.0)((sum, sample) => sum + sample.parameters.sigma) / samples.size
   println("estimated sigma is " + estimatedSigma)
+
 ```
-We also check the acceptance ratio is acceptable
+
+In the next tutorial, we see an example of how the exact same  mechanism can be used for 
+fitting shape models. Before we discuss this, we should, however, spend some time
+to discuss how the chain can be debugged in case something goes wrong.
+You can safely skip this section and come back to it later if you first want to 
+see a practical example.
+
+#### Debugging the markov Chain
+
+
+Sometimes a chain does not work as expected. The reason is usually that our proposals
+are not suitable for the target distribution. To diagnose the 
+behaviour of the chain we can introduce a logger. To write a logger, we need to extend
+ the from the trait 
+```AcceptRejectLogger```.
+
+The following, very simple logger counts all the accepted and rejected samples and
+computes the ratio. The acceptance ratio, which is ideally around 25%, already
+gives us an indication what goes on. 
+```scala mdoc:silent
+  class Logger extends AcceptRejectLogger[Sample] {
+    private val numAccepted = collection.mutable.Map[String, Int]()
+    private val numRejected = collection.mutable.Map[String, Int]()
+
+    override def accept(current: Sample,
+                        sample: Sample,
+                        generator: ProposalGenerator[Sample],
+                        evaluator: DistributionEvaluator[Sample]
+                       ): Unit = {
+      val numAcceptedSoFar = numAccepted.getOrElseUpdate(sample.generatedBy, 0)
+      numAccepted.update(sample.generatedBy, numAcceptedSoFar + 1)
+    }
+
+    override def reject(current: Sample,
+                          sample: Sample,
+                          generator: ProposalGenerator[Sample],
+                          evaluator: DistributionEvaluator[Sample]
+                         ): Unit = {
+      val numRejectedSoFar = numRejected.getOrElseUpdate(sample.generatedBy, 0)
+      numRejected.update(sample.generatedBy, numRejectedSoFar + 1)
+    }
+
+
+    def acceptanceRatios() : Map[String, Double] = {
+      val generatorNames = numRejected.keys.toSet.union(numAccepted.keys.toSet)
+      val acceptanceRatios = for (generatorName <- generatorNames ) yield {
+        val total = (numAccepted.getOrElse(generatorName, 0)
+                     + numRejected.getOrElse(generatorName, 0)).toDouble
+        (generatorName, numAccepted.getOrElse(generatorName, 0) / total)
+      }
+      acceptanceRatios.toMap
+    }
+  }
+
+```
+
+To use the logger, we simply rerun the chain, but pass the logger now as
+a second argument to the ```iterator``` method:
+```scala mdoc:silent
+  val logger = new Logger()
+  val mhIteratorWithLogging = chain.iterator(initialParameters, logger)
+   
+  val samples2 = mhIteratorWithLogging.drop(1000).take(3000).toIndexedSeq  
+```
+
+We can now check how often the individual samples got accepted.
 ```scala mdoc
-  println("acceptance ratio is " +logger.acceptanceRatio())
+  println("acceptance ratio is " +logger.acceptanceRatios())
 ```
+We see that the acceptance ratio of the random walk proposal, which takes the 
+smaller step is quite high, but that the larger step is often rejected. We might
+therefore want to reduce this step size slighly, as a proposal that is so often 
+rejected is not very efficient. 
 
-In this case, everything is okay and we have achieved our goal.
-
-In the next tutorial, we see an example of how we can use the mechanism for 
-fitting shape models.
+In more complicated applications, this type of debugging is crucial for obtaining
+efficient fitting algorithms. 
