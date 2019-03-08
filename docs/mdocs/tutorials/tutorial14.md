@@ -3,7 +3,7 @@
 # Model fitting using MCMC - The basic framework
 
 In this tutorial we show how Bayesian model fitting using Markov Chain Monte Carlo can be done in Scalismo. To be able
-to focus on the main components of the framework, we start in this tutorial with a simple toy example, which has nothing
+to focus on the main components of the framework instead of technical details, we start in this tutorial with a simple toy example, which has nothing
 to do with shape modelling. The application to shape modelling is discussed in depth in the next tutorial. 
 
 ##### Preparation
@@ -23,8 +23,11 @@ implicit val rng = scalismo.utils.Random(42)
 
 ### Problem setting
 
-The problem we are considering here is a simple toy problem: We are trying to fit a (univariate) normal distribution
-to a set of data points. We generate the data, which we denote in the following by $$y$$ from a normal distribution $$x \sim N(-5, 17)$$. 
+The problem we are considering here is a simple toy problem: We are trying to fit a (univariate) normal distribution, 
+with unknown mean and unknown standard deviation to a set of data points. 
+
+
+We test our method on synthetically generated data which is simulated from a normal distribution $$N(-5, 17)$$. 
 
 ```scala mdoc:silent
   val mu = -5
@@ -35,34 +38,33 @@ to a set of data points. We generate the data, which we denote in the following 
     trueDistribution.draw()
   }
 ```
-Assuming a normal model, our goal is to infer the unknown parameters $$\mu$$ and $$\sigma$$ of the normal distribution from 
-this data. Denoting the unknown parameters as $\theta = (\mu, \sigma)^T$, the task is to estimate the *posterior distribution*
+In the following we will denote the unknown parameters by $$\theta$$; I.e. $$\theta = (\mu, \sigma)$$ and the observed data points
+by $$y$$. Formally, our task is to compute the *posterior distribution*
 $$p(\theta | y) = \frac{p(\theta) p(y | \theta)}{p(y)}$$ where $$p(\theta)$$ is a prior distribution over the parameters, 
 which we will define later.
 
-*Remark: In a shape model fitting application, the parameters $$\theta$$ are all the model parameters and the data $$y$$ are 
-observations from the target shape, such as a set of landmark points, a surface or even an image.* 
+*Remark: Computing the posterior distribution of the parameters will also be our goal in a real shape model fitting application. 
+The only difference is that the parameters $$\theta$$ are not mean and standarddeviation, but the shape model parameters, and the data $$y$$ are 
+not simulated numbers, but measurements of the target object, such as a set of landmark points, a surface or even an image.* 
 
 
 ### Metropolis Hastings Algorithm
 
-In Scalismo, the way we approach such fitting problem is by using the 
-Metropolis Hastings algorithm. The Metropolis Hastings algorithm allows us to 
-draw samples from any distribution. The only requirements are, that the unnormalized
-distribution can be evaluated point-wise. To make the algorithm work, we need 
- to specify a proposal distribution $$Q(\theta | \theta')$$, from which we can sample. 
- The Metropolis Hastings algorithm introduces an ingenious scheme for accepting 
- and rejecting the samples from the proposal distribution, based on the target density, 
- such that the resulting sequence of samples are distributed according to the 
- target distribution. 
+The way we approach such fitting problem in Scalismo is by using the 
+Metropolis Hastings algorithm. The Metropolis-Hastings algorithm allows us to 
+draw samples from any distribution, given that the unnormalized distribution can be evaluated point-wise. This requirement is
+easy to fulfill for all shape modelling applications. 
+
+For setting up the Metropolis-Hastings algorithm, we need two things:
+1. The (unnormalized) target distribution, from which we want to sample. In our case this is the posterior distribution $$p(\theta | y)$$  
+2. A proposal distribution $$(Q(\theta' | \theta))$$, which generates for a given sample $$\theta$$ a new sample $$\theta''$$.
+
+The Metropolis Hastings algorithm introduces an ingenious scheme for accepting 
+and rejecting the samples from this proposal distribution, based on their probability under the target density, 
+such that the resulting sequence of samples is guaranteed to be distributed according to the 
+target distribution. 
  
-Hence to make this algorithm work in Scalismo, we need to define:
-
-1. The (unnormalized) target distribution, from which we want to sample.  
-2. The proposal generator
-
-
-Before we discuss these components in detail, we first define a class for representing 
+Before we discuss how we set up these components in Scalismo, we first define a class for representing 
 the parameters $$\theta = (\mu, \sigma)$$:
 ```scala mdoc:silent
 case class Parameters(mu : Double, sigma: Double)
@@ -87,10 +89,10 @@ trait DistributionEvaluator[A] {
   def logValue(sample: A): Double
 }
 ```
-We see that we only need to define the log probability of a sample:
+We see that the only thing we need to define is the log probability of a sample.
+
 In our case, we will define separate evaluators for the prior distribution $$p(\theta)$$ and
   the likelihood $$p(y | \theta)$$.
-
 The evaluator for the likelihood is simple: Assuming a normal model, we define
 the normal distribution with the given parameters $$\theta$$, and use this model
 to evaluate the likelihood of the individual observations.  
@@ -158,8 +160,8 @@ trait TransitionProbability[A] extends TransitionRatio[A] {
 }
 ```
 
-To keep things simple, we use here a *random walk proposal*, that is a proposal, 
-which perturbs the current state by taking a step of random length in a random direction. 
+To keep things simple, we use here a *random walk proposal*. This is a proposal 
+which updates the current state by taking a step of random length in a random direction. 
 It is defined as follows:
 ```scala mdoc:silent
 case class RandomWalkProposal(stddevMu: Double, stddevSigma : Double)(implicit rng : scalismo.utils.Random)
@@ -194,8 +196,8 @@ Let's define two random walk proposals with different step length:
 val smallStepProposal = RandomWalkProposal(3.0, 1.0)
 val largeStepProposal = RandomWalkProposal(9.0, 3.0)
 ```
-Varying the step length allow us to sometimes take larger step, to explore the global
-landscape, and sometimes explore locally. We can combine these proposal into a 
+Varying the step length allow us to sometimes take large step, in order to explore the global
+landscape, and sometimes smaller steps, to explore a local environment. We can combine these proposal into a 
 ```MixtureProposal```, which chooses the individual proposals with a given 
 probability. Here We choose to take the large step 20% of the time, and the smaller
 steps 80% of the time:
@@ -216,8 +218,8 @@ val chain = MetropolisHastings(generator, posteriorEvaluator)
 ```
 
 To run the chain, we obtain an iterator, 
-which we then consume. To obtain the iterator, we need to specify the initial 
-parameters:
+which we then consume to drive the sampling generation. To obtain the iterator, we need to specify the initial 
+sample:
 
 ```scala mdoc:silent
   val initialSample = Sample(generatedBy="initial", Parameters(0.0, 10.0))
@@ -225,7 +227,7 @@ parameters:
 ```
 
 Our initial parameters might be far away from a high-probability area of our target 
-density. Therefore it might take a few (hundred) iterations before the produced samples
+density. Therefore it might take a few hundred or even a few thousand iterations before the produced samples
 start to follow the required distribution. We therefore have to drop the 
 samples in this burn-in phase, before we use the samples:
 ```scala mdoc:silent
@@ -254,7 +256,7 @@ see a practical example.
 Sometimes a chain does not work as expected. The reason is usually that our proposals
 are not suitable for the target distribution. To diagnose the 
 behaviour of the chain we can introduce a logger. To write a logger, we need to extend
- the trait ```AcceptRejectLogger``` defined as follows:
+ the trait ```AcceptRejectLogger```, which is defined as follows:
  
 ```scala 
 trait AcceptRejectLogger[A] {
