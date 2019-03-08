@@ -3,14 +3,14 @@
 # Model fitting using MCMC - Fitting a shape model 
 
 In this tutorial we show how the MCMC framework, which was introduced in the previous
-tutorial can be used for shape model fitting. 
+tutorial, can be used for shape model fitting. 
 
 We will illustrate it by computing a posterior of a shape model, 
-given a set of corresponding landmark pairs. This is the same setup, as we have 
+given a set of corresponding landmark pairs. This is the same setup that we have 
 discussed in the tutorial about Gaussian process regression. The difference is, 
 that here we will also allow for rotation and translation of the model. In this setting, 
-it is not possible anymore to compute the posterior analytically. Rather, approximation methods, such as
-using Markov-chain monte carlo methods are our only hope.  
+it is not possible anymore to compute the posterior analytically. Rather, our only hope are approximation methods, such as
+using Markov-chain monte carlo methods.  
 
 In this tutorial we show not only a working example, but also how to make it 
 computationally efficient. Making the individual parts as efficient as possible is 
@@ -47,7 +47,7 @@ val ui = ScalismoUI()
 ### Loading and visualizing the data
 
 In a first step, we load and visualize all the data that we need. 
-This is first the statistical model:
+First, we load the statistical model:
 
 ```scala mdoc:silent
   val model = StatisticalModelIO.readStatisticalMeshModel(new java.io.File("datasets/bfm.h5")).get
@@ -57,7 +57,7 @@ This is first the statistical model:
   modelView.meshView.opacity = 0.5
 ```
 
-In this example, we will fit the model such that a set of landmark points, defined on the model, coincide
+In this example, we will fit the model such that a set of model landmarks, coincide
 with a set of landmark points defined on a target face. We load and visualize the corresponding landmark data:
   
 ```scala mdoc:silent
@@ -72,15 +72,16 @@ with a set of landmark points defined on a target face. We load and visualize th
   modelLmViews.foreach(lmView => lmView.color = java.awt.Color.RED)
 ```
 
-In the following we will refer to the points on the model using their point id, while the target 
-position is represented as physical points.   
+In the following, we will refer to the points on the model using their point id, while the target 
+position is represented as physical points. The reason why we use the point id for the model is that the model instances, 
+and therefore the points, which are represented by the point id, are changing as we fit the model.   
 ```scala mdoc:silent
   val modelLmIds =  modelLms.map(l => model.mean.pointSet.pointId(l.point).get)
   val targetPoints = targetLms.map(l => l.point)
 ```
 
 We assume that the target points we observe are subject to 
-noise, which we model as a normal distribution with $$3 mm$ standard deviation:
+noise, which we model as a normal distribution with $$3 mm$$ standard deviation:
 ```scala mdoc:silent
     val landmarkNoiseVariance = 9.0
     val uncertainty = MultivariateNormalDistribution(
@@ -173,7 +174,7 @@ the current model instance as determined by the shape and pose parameters.
 From this model instance, the points at the given points id are extracted and
 the distance to their target position is computed. This distance is what was
 modelled by the uncertainty of the observations. We can therefore directly use
-the modeled uncertainty to compute the likelihood of our model given the data: 
+the modelled uncertainty to compute the likelihood of our model given the data: 
 
 ``` scala mdoc:silent
 case class SimpleCorrespondenceEvaluator(model: StatisticalMeshModel,
@@ -202,11 +203,14 @@ case class SimpleCorrespondenceEvaluator(model: StatisticalMeshModel,
 Conceptually, this is all that needed to be done to specify the target distribution. 
 In practice, we are interested to make these evaluators as efficient as possible, 
 as they are usually called thousands of times.
+
+##### Performance improvements
+
 In the above implementation, we compute a full model instance (the new position of all the mesh points 
 represented by the shape model), although we are only interested in the position of the landmark points. 
 This is rather inefficient. A more efficient version would first marginalize the model to the
 points of interest. Since marginalization changes the point ids, we need to map the
-ids given as```correspondences```, to use the new ids. This is achieved by the following helper function:
+ids given as```correspondences``` to their new ids. This is achieved by the following helper function:
 
 ```scala mdoc:silent
 def marginalizeModelForCorrespondences(model: StatisticalMeshModel,
@@ -271,6 +275,8 @@ we can obtain for any evaluator a new evaluator, which performs such caching:
 
 ```
 
+#### The posterior evaluator
+
 Given these evaluators, we can now build the computationally efficient version of 
 our target density $$p(\theta | D)$$ 
 
@@ -283,8 +289,8 @@ val posteriorEvaluator = ProductEvaluator(priorEvaluator, likelihoodEvaluator)
 
 ### The proposal generator
 
-As in the previous tutorials, we let the proposals be simple random walks.
-We need to define separate proposals for shape, translation and rotation. 
+As in the previous tutorials, we will use simple random walk proposals.
+We will define separate proposals for shape, translation and rotation. 
  On one hand, this lets us set the step length (i.e. stddev of the distribution from which we 
 sample the next step) individually for each group, and thus to incorporate our knowledge
 that changes in rotation will be much smaller than the shape changes. On the other hand, 
@@ -380,10 +386,10 @@ val shapeUpdateProposal = ShapeUpdateProposal(model.rank, 0.1)
 val rotationUpdateProposal = RotationUpdateProposal(0.01)
 val translationUpdateProposal = TranslationUpdateProposal(1.0)
 val generator = MixtureProposal.fromProposalsWithTransition(
- (0.6, shapeUpdateProposal),
- (0.2, rotationUpdateProposal),
- (0.2, translationUpdateProposal)
-)
+                                    (0.6, shapeUpdateProposal),
+                                    (0.2, rotationUpdateProposal),
+                                    (0.2, translationUpdateProposal)
+                                )
    
  ```
  
@@ -483,7 +489,7 @@ Before working with the results, we check the acceptance ratios to verify that a
   println(logger.acceptanceRatios())
 ```  
   
-### Analysing the results
+### Analyzing the results
 
 Once we have the samples, we can now use them to analyze our fit. 
 For example, we can select the best fit from these samples and visualize it 
@@ -494,7 +500,7 @@ For example, we can select the best fit from these samples and visualize it
   ui.show(resultGroup, bestFit, "best fit")
 ```  
   
-The samples allow us to infer much more about the distribution. We can for example, estimate the expected position of 
+The samples allow us to infer much more about the distribution. For example, we can estimate the expected position of 
 any point in the model and the variance from the samples:
 
 ```scala mdoc:silent
@@ -539,14 +545,14 @@ where we would have to assume the pose to be fixed:
 ```scala mdoc:silent
 val posteriorFixedPose = model.posterior(correspondences.toIndexedSeq)
 ```
-Not surprisingly, computing the variance of this models reveal, that the points vary less flexibly, as due to the fixed pose, 
-there is less flexiblity for the model to adapt:  
+Not surprisingly, computing the variance of this models reveals, that the points vary less in the model this model:
 ```scala mdoc
 for ((id, _, _) <- newCorrespondences) {
   val cov = posteriorFixedPose.cov(id, id)
   println(s"posterior variance computed by analytic posterior (shape only) for point with id $id = ${cov(0,0)}, ${cov(1,1)}, ${cov(2,2)}")
 }
 ```
+The reason for the reduced flexibility is that the model cannot adjust the pose, and hence has less freedom to explain the observed data. 
 
 ### Beyond landmark fitting
 
