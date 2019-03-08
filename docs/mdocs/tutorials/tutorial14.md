@@ -57,7 +57,7 @@ easy to fulfill for all shape modelling applications.
 
 For setting up the Metropolis-Hastings algorithm, we need two things:
 1. The (unnormalized) target distribution, from which we want to sample. In our case this is the posterior distribution $$p(\theta \mid y)$$  
-2. A proposal distribution $$(Q(\theta' \mid \theta))$$, which generates for a given sample $$\theta$$ a new sample $$\theta''$$.
+2. A proposal distribution $$(Q(\theta' \mid \theta))$$, which generates for a given sample $$\theta$$ a new sample $$\theta'$$.
 
 The Metropolis Hastings algorithm introduces an ingenious scheme for accepting 
 and rejecting the samples from this proposal distribution, based on their probability under the target density, 

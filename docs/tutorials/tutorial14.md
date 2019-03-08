@@ -58,7 +58,7 @@ easy to fulfill for all shape modelling applications.
 
 For setting up the Metropolis-Hastings algorithm, we need two things:
 1. The (unnormalized) target distribution, from which we want to sample. In our case this is the posterior distribution $$p(\theta \mid y)$$
-2. A proposal distribution $$(Q(\theta' \mid \theta))$$, which generates for a given sample $$\theta$$ a new sample $$\theta''$$.
+2. A proposal distribution $$(Q(\theta' \mid \theta))$$, which generates for a given sample $$\theta$$ a new sample $$\theta'$$.
 
 The Metropolis Hastings algorithm introduces an ingenious scheme for accepting
 and rejecting the samples from this proposal distribution, based on their probability under the target density,
@@ -257,13 +257,13 @@ our data:
 
 ```scala
 val estimatedMean = samples.foldLeft(0.0)((sum, sample) => sum + sample.parameters.mu) / samples.size
-// estimatedMean: Double = -4.79489719658041
+// estimatedMean: Double = -4.93328507579315
   println("estimated mean is " + estimatedMean)
-// estimated mean is -4.79489719658041
+// estimated mean is -4.93328507579315
   val estimatedSigma = samples.foldLeft(0.0)((sum, sample) => sum + sample.parameters.sigma) / samples.size
-// estimatedSigma: Double = 17.358523003914353
+// estimatedSigma: Double = 16.34666970915081
   println("estimated sigma is " + estimatedSigma)
-// estimated sigma is 17.358523003914353
+// estimated sigma is 16.34666970915081
 ```
 
 In the next tutorial, we see an example of how the exact same  mechanism can be used for
@@ -346,7 +346,7 @@ We can now check how often the individual samples got accepted.
 
 ```scala
 println("acceptance ratio is " +logger.acceptanceRatios())
-// acceptance ratio is Map(randomWalkProposal (3.0, 1.0) -> 0.46122059758423395, randomWalkProposal (9.0, 3.0) -> 0.13716295427901523)
+// acceptance ratio is Map(randomWalkProposal (3.0, 1.0) -> 0.44609079445145017, randomWalkProposal (9.0, 3.0) -> 0.11729141475211609)
 ```
 
 We see that the acceptance ratio of the random walk proposal, which takes the
