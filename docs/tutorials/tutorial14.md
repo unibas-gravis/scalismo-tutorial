@@ -57,8 +57,8 @@ draw samples from any distribution, given that the unnormalized distribution can
 easy to fulfill for all shape modelling applications.
 
 For setting up the Metropolis-Hastings algorithm, we need two things:
-1. The (unnormalized) target distribution, from which we want to sample. In our case this is the posterior distribution $$p(\theta | y)$$
-2. A proposal distribution $$(Q(\theta' | \theta))$$, which generates for a given sample $$\theta$$ a new sample $$\theta''$$.
+1. The (unnormalized) target distribution, from which we want to sample. In our case this is the posterior distribution $$p(\theta \mid y)$$
+2. A proposal distribution $$(Q(\theta' \mid \theta))$$, which generates for a given sample $$\theta$$ a new sample $$\theta''$$.
 
 The Metropolis Hastings algorithm introduces an ingenious scheme for accepting
 and rejecting the samples from this proposal distribution, based on their probability under the target density,
@@ -257,13 +257,13 @@ our data:
 
 ```scala
 val estimatedMean = samples.foldLeft(0.0)((sum, sample) => sum + sample.parameters.mu) / samples.size
-// estimatedMean: Double = -3.9618317099236986
+// estimatedMean: Double = -4.79489719658041
   println("estimated mean is " + estimatedMean)
-// estimated mean is -3.9618317099236986
+// estimated mean is -4.79489719658041
   val estimatedSigma = samples.foldLeft(0.0)((sum, sample) => sum + sample.parameters.sigma) / samples.size
-// estimatedSigma: Double = 18.043471027180967
+// estimatedSigma: Double = 17.358523003914353
   println("estimated sigma is " + estimatedSigma)
-// estimated sigma is 18.043471027180967
+// estimated sigma is 17.358523003914353
 ```
 
 In the next tutorial, we see an example of how the exact same  mechanism can be used for
@@ -346,7 +346,7 @@ We can now check how often the individual samples got accepted.
 
 ```scala
 println("acceptance ratio is " +logger.acceptanceRatios())
-// acceptance ratio is Map(randomWalkProposal (3.0, 1.0) -> 0.47943895441504625, randomWalkProposal (9.0, 3.0) -> 0.13805104408352667)
+// acceptance ratio is Map(randomWalkProposal (3.0, 1.0) -> 0.46122059758423395, randomWalkProposal (9.0, 3.0) -> 0.13716295427901523)
 ```
 
 We see that the acceptance ratio of the random walk proposal, which takes the
