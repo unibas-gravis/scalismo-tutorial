@@ -3,12 +3,57 @@
 # Model fitting using MCMC - The basic framework
 
 In this tutorial we show how Bayesian model fitting using Markov Chain Monte Carlo can be done in Scalismo. To be able
-to focus on the main components of the framework instead of technical details, we start in this tutorial with a simple toy example, which has nothing
-to do with shape modelling. The application to shape modelling is discussed in depth in the next tutorial.
+to focus on the main components of the framework instead of technical details, we start in this tutorial with a simple toy example from statistics.
+Although the example has nothing to do with shape modelling, the modelling principles and the steps involve to do the inference are
+exactly the same. The application to shape modelling is discussed in depth in the next tutorial.
+
+
+### Problem setting
+
+The problem we are considering here is a simple toy problem from Bayesian statistics: We are trying to fit a (univariate) normal distribution $$N(\mu, \sigma)$$,
+with unknown mean and unknown standard deviation to a set of data points.
+In the following we will denote the unknown parameters by $$\theta$$; I.e. $$\theta = (\mu, \sigma)$$ and the observed data points
+by $$y$$. In a Bayesian setting, doing inference means that we compute the *posterior distribution* $$p(\theta | y)$$. Formally, the *posterior distribution* is defined as follows:
+
+$$p(\theta | y) = \frac{p(\theta) p(y | \theta)}{p(y)}$$.
+
+The term $$p(y | \theta)$$ is called the likelihood function, and is
+given directly by the problem definition as $$p(y | theta) = N(\mu, \sigma)$$. The term $$p(\theta)$$ is a prior distribution over the parameters,
+which we will define later. The final term involved $$p(y)$$ is called the marginal likelihood. Formally, it can be defined as $$p(y) = \int_\theta p(y | theta) p(\theta) d\theta$$.
+Fortunately, we will never need to compute this quantity.
+
+
+*Remark: Computing the posterior distribution of the parameters will also be our goal in a real shape model fitting application.
+The only difference is that the parameters $$\theta$$ are not mean and standard deviation, but the shape model parameters, and the data $$y$$ are
+not simulated numbers, but measurements of the target object, such as a set of landmark points, a surface or even an image.*
+
+
+### Metropolis Hastings Algorithm
+
+The way we approach such fitting problem in Scalismo is by using the
+Metropolis Hastings algorithm. The Metropolis-Hastings algorithm allows us to
+draw samples from any distribution, given that the unnormalized distribution can be evaluated point-wise. This requirement is
+easy to fulfill for all shape modelling applications.
+
+For setting up the Metropolis-Hastings algorithm, we need two things:
+1. The (unnormalized) target distribution, from which we want to sample. In our case this is the posterior distribution $$p(\theta \mid y)$$. In Scalismo
+   the corresponding class is called the ```Distribution Evaluator```.
+2. A proposal distribution $$Q(\theta' \mid \theta)$$, which generates for a given sample $$\theta$$ a new sample $$\theta'$$.
+
+The Metropolis Hastings algorithm introduces an ingenious scheme for accepting
+and rejecting the samples from this proposal distribution, based on their probability under the target density,
+such that the resulting sequence of samples is guaranteed to be distributed according to the
+target distribution.
+In practice, the algorithm works as follows: It uses the proposal generator to perturb a given sample $$\theta$$ to obtain a new sample $$\theta'$$.  Then it checks, using the evaluator, which of the two samples, $$\theta$$ or $$\theta'$$ is more likely and
+uses this ratio as a basis for rejecting or accepting the new sample.
+
+
+### Implementation in Scalismo
 
 ##### Preparation
 
 As in the previous tutorials, we start by importing some commonly used objects and initializing the system.
+
 
 ```scala
 import scalismo.sampling.algorithms.MetropolisHastings
@@ -21,13 +66,7 @@ scalismo.initialize()
 implicit val rng = scalismo.utils.Random(42)
 ```
 
-### Problem setting
-
-The problem we are considering here is a simple toy problem: We are trying to fit a (univariate) normal distribution,
-with unknown mean and unknown standard deviation to a set of data points.
-
-
-We test our method on synthetically generated data which is simulated from a normal distribution $$N(-5, 17)$$.
+To test our method, we generate data from a normal distribution $$N(-5, 17)$$.
 
 ```scala
   val mu = -5
@@ -39,33 +78,7 @@ We test our method on synthetically generated data which is simulated from a nor
   }
 ```
 
-In the following we will denote the unknown parameters by $$\theta$$; I.e. $$\theta = (\mu, \sigma)$$ and the observed data points
-by $$y$$. Formally, our task is to compute the *posterior distribution*
-$$p(\theta | y) = \frac{p(\theta) p(y | \theta)}{p(y)}$$ where $$p(\theta)$$ is a prior distribution over the parameters,
-which we will define later.
-
-*Remark: Computing the posterior distribution of the parameters will also be our goal in a real shape model fitting application.
-The only difference is that the parameters $$\theta$$ are not mean and standarddeviation, but the shape model parameters, and the data $$y$$ are
-not simulated numbers, but measurements of the target object, such as a set of landmark points, a surface or even an image.*
-
-
-### Metropolis Hastings Algorithm
-
-The way we approach such fitting problem in Scalismo is by using the
-Metropolis Hastings algorithm. The Metropolis-Hastings algorithm allows us to
-draw samples from any distribution, given that the unnormalized distribution can be evaluated point-wise. This requirement is
-easy to fulfill for all shape modelling applications.
-
-For setting up the Metropolis-Hastings algorithm, we need two things:
-1. The (unnormalized) target distribution, from which we want to sample. In our case this is the posterior distribution $$p(\theta \mid y)$$
-2. A proposal distribution $$(Q(\theta' \mid \theta))$$, which generates for a given sample $$\theta$$ a new sample $$\theta'$$.
-
-The Metropolis Hastings algorithm introduces an ingenious scheme for accepting
-and rejecting the samples from this proposal distribution, based on their probability under the target density,
-such that the resulting sequence of samples is guaranteed to be distributed according to the
-target distribution.
-
-Before we discuss how we set up these components in Scalismo, we first define a class for representing
+Before we discuss the two main components, the *Evaluator* and *Proposal generator* in detail, we first define a class for representing
 the parameters $$\theta = (\mu, \sigma)$$:
 
 ```scala
@@ -77,8 +90,7 @@ simply a set of parameters together with a tag, which helps us to keep track lat
 on, which proposal generator generated the sample:
 
 ```scala
-case class Sample(generatedBy : String,
-                  parameters : Parameters)
+case class Sample(parameters : Parameters, generatedBy : String)
 ```
 
 #### Evaluators: Modelling the target density
@@ -179,19 +191,20 @@ It is defined as follows:
 case class RandomWalkProposal(stddevMu: Double, stddevSigma : Double)(implicit rng : scalismo.utils.Random)
     extends ProposalGenerator[Sample] with TransitionProbability[Sample] {
 
-    val stepDistMu = breeze.stats.distributions.Gaussian(0, stddevMu)
-    val stepDistSigma = breeze.stats.distributions.Gaussian(0, stddevSigma)
-
     override def propose(sample: Sample): Sample = {
       val newParameters = Parameters(
         mu = sample.parameters.mu + rng.breezeRandBasis.gaussian(0, stddevMu).draw(),
         sigma = sample.parameters.sigma + rng.breezeRandBasis.gaussian(0, stddevSigma).draw()
       )
 
-      Sample(s"randomWalkProposal ($stddevMu, $stddevSigma)", newParameters)
+      Sample(newParameters, s"randomWalkProposal ($stddevMu, $stddevSigma)")
     }
 
     override def logTransitionProbability(from: Sample, to: Sample) : Double = {
+    
+      val stepDistMu = breeze.stats.distributions.Gaussian(0, stddevMu)
+      val stepDistSigma = breeze.stats.distributions.Gaussian(0, stddevSigma)
+    
       val residualMu = to.parameters.mu - from.parameters.mu
       val residualSigma = to.parameters.sigma - from.parameters.sigma
       stepDistMu.logPdf(residualMu)  + stepDistMu.logPdf(residualSigma)
@@ -238,7 +251,7 @@ which we then consume to drive the sampling generation. To obtain the iterator, 
 sample:
 
 ```scala
-val initialSample = Sample(generatedBy="initial", Parameters(0.0, 10.0))
+val initialSample = Sample(Parameters(0.0, 10.0), generatedBy="initial")
 val mhIterator = chain.iterator(initialSample)
 ```
 
@@ -256,14 +269,14 @@ from this samples, really corresponds to the parameters from which we sampled
 our data:
 
 ```scala
-val estimatedMean = samples.foldLeft(0.0)((sum, sample) => sum + sample.parameters.mu) / samples.size
-// estimatedMean: Double = -4.93328507579315
+val estimatedMean = samples.map(sample => sample.parameters.mu).sum  / samples.size
+// estimatedMean: Double = -7.869167078001387
   println("estimated mean is " + estimatedMean)
-// estimated mean is -4.93328507579315
-  val estimatedSigma = samples.foldLeft(0.0)((sum, sample) => sum + sample.parameters.sigma) / samples.size
-// estimatedSigma: Double = 16.34666970915081
+// estimated mean is -7.869167078001387
+  val estimatedSigma = samples.map(sample => sample.parameters.sigma).sum / samples.size
+// estimatedSigma: Double = 17.492224803222886
   println("estimated sigma is " + estimatedSigma)
-// estimated sigma is 16.34666970915081
+// estimated sigma is 17.492224803222886
 ```
 
 In the next tutorial, we see an example of how the exact same  mechanism can be used for
@@ -346,7 +359,7 @@ We can now check how often the individual samples got accepted.
 
 ```scala
 println("acceptance ratio is " +logger.acceptanceRatios())
-// acceptance ratio is Map(randomWalkProposal (3.0, 1.0) -> 0.44609079445145017, randomWalkProposal (9.0, 3.0) -> 0.11729141475211609)
+// acceptance ratio is Map(randomWalkProposal (3.0, 1.0) -> 0.45964691046658257, randomWalkProposal (9.0, 3.0) -> 0.14389359129383314)
 ```
 
 We see that the acceptance ratio of the random walk proposal, which takes the
