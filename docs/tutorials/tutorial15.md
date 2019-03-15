@@ -542,86 +542,10 @@ any point in the model and the variance from the samples:
 For efficiency reasons, we do the computations here only for the landmark points, using again the marginalized model:
 
 ```scala
-val (marginalizedModel, newCorrespondences) = marginalizeModelForCorrespondences(model, correspondences)    
-// marginalizedModel: StatisticalMeshModel = StatisticalMeshModel(
-//   TriangleMesh3D(
-//     scalismo.common.UnstructuredPointsDomain3D@16b01f4d,
-//     TriangleList(Vector())
-//   ),
-//   DiscreteLowRankGaussianProcess(
-//     scalismo.common.UnstructuredPointsDomain3D@16b01f4d,
-//     DenseVector(-2.4434967041015625, 2.350008010864258, 0.442657470703125, -2.9081268310546875, 1.451995849609375, 0.908905029296875, -1.6051483154296875, 0.8872489929199219, 0.2577056884765625, -1.0640869140625, 1.5610084533691406, 1.529266357421875, 7.3378448486328125, -1.0377426147460938, -0.8446807861328125, 4.6402587890625, -1.0488052368164062, -0.2399749755859375),
-//     DenseVector(1448832.5, 366419.90625, 272218.9375, 174594.765625, 118833.6953125, 96322.5703125, 65858.7265625, 32242.50390625, 22365.66796875, 2.256714282111716E-8),
-//     -0.0020904541015625    -0.00250244140625     ... (10 total)
-// -0.00147247314453125   9.765625E-4           ...
-// 0.002288818359375      -0.00201416015625     ...
-// -0.001922607421875     -0.0016021728515625   ...
-// -9.11712646484375E-4   1.6021728515625E-4    ...
-// 0.002197265625         -0.001373291015625    ...
-// -0.0019683837890625    -0.002044677734375    ...
-// -8.029937744140625E-4  -1.52587890625E-4     ...
-// -0.0016937255859375    0.001495361328125     ...
-// -0.002166748046875     -0.00250244140625     ...
-// -9.307861328125E-4     8.335113525390625E-4  ...
-// -0.001861572265625     0.002166748046875     ...
-// -0.003875732421875     -6.103515625E-5       ...
-// 4.425048828125E-4      -7.5531005859375E-4   ...
-// 3.96728515625E-4       3.204345703125E-4     ...
-// -0.0030364990234375    -0.0048828125         ...
-// 0.00316619873046875    -3.8909912109375E-4   ...
-// 3.662109375E-4         1.52587890625E-5      ...
-//   )
-// )
-// newCorrespondences: Seq[(PointId, Point[_3D], MultivariateNormalDistribution)] = List(
-//   (
-//     PointId(0),
-//     Point3D(148.41268920898438, -5.294463634490967, 290.7681884765625),
-//     MultivariateNormalDistribution(
-//       DenseVector(0.0, 0.0, 0.0),
-//       9.0  0.0  0.0  
-// 0.0  9.0  0.0  
-// 0.0  0.0  9.0  
-//     )
-//   ),
-//   (
-//     PointId(1),
-//     Point3D(142.35382080078125, -5.664807319641113, 268.0462951660156),
-//     MultivariateNormalDistribution(
-//       DenseVector(0.0, 0.0, 0.0),
-//       9.0  0.0  0.0  
-// 0.0  9.0  0.0  
-// 0.0  0.0  9.0  
-//     )
-//   ),
-//   (
-//     PointId(2),
-//     Point3D(140.85040283203125, -5.128785610198975, 225.04928588867188),
-//     MultivariateNormalDistribution(
-//       DenseVector(0.0, 0.0, 0.0),
-//       9.0  0.0  0.0  
-// 0.0  9.0  0.0  
-// 0.0  0.0  9.0  
-//     )
-//   ),
-//   (
-//     PointId(3),
-//     Point3D(143.13357543945312, -4.769620895385742, 202.04534912109375),
-//     MultivariateNormalDistribution(
-//       DenseVector(0.0, 0.0, 0.0),
-//       9.0  0.0  0.0  
-// 0.0  9.0  0.0  
-// 0.0  0.0  9.0  
-//     )
-//   ),
-//   (
-//     PointId(4),
-//     Point3D(102.81741333007812, 32.58876037597656, 247.52294921875),
-//     MultivariateNormalDistribution(
-//       DenseVector(0.0, 0.0, 0.0),
-//       9.0  0.0  0.0  
-// 0.0  9.0  0.0  
-// 0.0  0.0  9.0  
-// ...    
+val (marginalizedModel, newCorrespondences) = marginalizeModelForCorrespondences(model, correspondences)
+```
+
+```scala
 for ((id, _, _) <- newCorrespondences) {
     val meanPointPosition = computeMean(marginalizedModel, id)
     println(s"expected position for point at id $id  = $meanPointPosition")

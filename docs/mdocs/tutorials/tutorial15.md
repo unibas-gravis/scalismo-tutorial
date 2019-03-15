@@ -529,8 +529,10 @@ any point in the model and the variance from the samples:
 ```
 
 For efficiency reasons, we do the computations here only for the landmark points, using again the marginalized model:
+```scala mdoc:silent
+val (marginalizedModel, newCorrespondences) = marginalizeModelForCorrespondences(model, correspondences)
+```    
 ```scala mdoc
-val (marginalizedModel, newCorrespondences) = marginalizeModelForCorrespondences(model, correspondences)    
 for ((id, _, _) <- newCorrespondences) {
     val meanPointPosition = computeMean(marginalizedModel, id)
     println(s"expected position for point at id $id  = $meanPointPosition")
