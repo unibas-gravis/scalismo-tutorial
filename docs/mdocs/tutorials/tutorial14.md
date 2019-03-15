@@ -16,11 +16,11 @@ with unknown mean and unknown standard deviation to a set of data points.
 In the following we will denote the unknown parameters by $$\theta$$; I.e. $$\theta = (\mu, \sigma)$$ and the observed data points
 by $$y$$. In a Bayesian setting, doing inference means that we compute the *posterior distribution* $$p(\theta | y)$$. Formally, the *posterior distribution* is defined as follows:
 
-$$p(\theta | y) = \frac{p(\theta) p(y | \theta)}{p(y)}$$. 
+$$p(\theta \mid y) = \frac{p(\theta) p(y \mid \theta)}{p(y)}$$. 
 
 The term $$p(y | \theta)$$ is called the likelihood function, and is 
-given directly by the problem definition as $$p(y | theta) = N(\mu, \sigma)$$. The term $$p(\theta)$$ is a prior distribution over the parameters, 
-which we will define later. The final term involved $$p(y)$$ is called the marginal likelihood. Formally, it can be defined as $$p(y) = \int_\theta p(y | theta) p(\theta) d\theta$$. 
+given directly by the problem definition as $$p(y | \theta) = N(\mu, \sigma)$$. The term $$p(\theta)$$ is a prior distribution over the parameters, 
+which we will define later. The final term involved $$p(y)$$ is called the marginal likelihood. Formally, it can be defined as $$p(y) = \int_\theta p(y | \theta) p(\theta) d\theta$$. 
 Fortunately, we will never need to compute this quantity.
  
 

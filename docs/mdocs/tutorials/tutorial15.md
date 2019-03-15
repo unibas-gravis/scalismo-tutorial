@@ -81,9 +81,9 @@ and therefore the points, which are represented by the point id, are changing as
 ```
 
 We assume that the target points we observe are subject to 
-noise, which we model as a normal distribution with $$3 mm$$ standard deviation:
+noise, which we model as a normal distribution with $$3 mm$$ standard deviation (hence $$9 mm$$ variance):
 ```scala mdoc:silent
-    val landmarkNoiseVariance = 9.0
+    val landmarkNoiseVariance = 9.0 
     val uncertainty = MultivariateNormalDistribution(
       DenseVector.zeros[Double](3),
       DenseMatrix.eye[Double](3) * landmarkNoiseVariance
@@ -105,7 +105,7 @@ and uncertainty.
 
 In this example, we want to model the posterior $$p(\theta | D)$$, where 
 the parameters $$\theta =( t, r, \alpha)$$ consist of the translation parameters
-$$t=(t_x, t_y, t_z)$$, the rotation parameters $$r = (\phi, \psi, \omega)$, 
+$$t=(t_x, t_y, t_z)$$, the rotation parameters $$r = (\phi, \psi, \omega)$$, 
 represented as Euler angles as well a shape model coefficients $$\alpha = (\alpha_1, \ldots, \alpha_n)$$. 
 
 ```scala mdoc:silent
@@ -114,8 +114,8 @@ case class Parameters(translationParameters: EuclideanVector[_3D],
                      modelCoefficients: DenseVector[Double])
 ```
 
-As in the previous tutorial, we wrap this into a sample class, which can keep track of who has 
-generated the sample. Furthermore, we will add convenience method, 
+As in the previous tutorial, we wrap this into a class representing the sample, which can keep track by whom 
+it was generated. Furthermore, we will add convenience method, 
 which builds a ```RigidTransformation``` from the parameters. As a rigid transformation 
 is not completely determined by the translation and rotation parameters, we need to 
 store also the center of rotation.  
@@ -145,7 +145,7 @@ As in the previous tutorial, we represent the unnormalized posterior distributio
 as the product of prior and likelihood:
 $$p(\theta | D) \propto p(\theta) p(D | \theta)$$, 
 where $$D$$ denotes the data (i.e. the corresponding landmark points) and $$\theta$$ 
-oru parameters.
+are our parameters.
 
 As a prior over the shape parameters is given by the shape model. For the 
 translation and rotation, we assume a zero-mean normal distribution:
@@ -493,7 +493,7 @@ Before working with the results, we check the acceptance ratios to verify that a
 
 Once we have the samples, we can now use them to analyze our fit. 
 For example, we can select the best fit from these samples and visualize it 
-```scala modc:silent
+```scala mdoc:silent
   val bestSample = samples.maxBy(posteriorEvaluator.logValue)
   val bestFit = model.instance(bestSample.parameters.modelCoefficients).transform(bestSample.poseTransformation)
   val resultGroup = ui.createGroup("result")
@@ -529,7 +529,7 @@ any point in the model and the variance from the samples:
 ```
 
 For efficiency reasons, we do the computations here only for the landmark points, using again the marginalized model:
-```scala mdoc:silent
+```scala mdoc
 val (marginalizedModel, newCorrespondences) = marginalizeModelForCorrespondences(model, correspondences)    
 for ((id, _, _) <- newCorrespondences) {
     val meanPointPosition = computeMean(marginalizedModel, id)
@@ -545,7 +545,7 @@ where we would have to assume the pose to be fixed:
 ```scala mdoc:silent
 val posteriorFixedPose = model.posterior(correspondences.toIndexedSeq)
 ```
-Not surprisingly, computing the variance of this models reveals, that the points vary less in the model this model:
+Not surprisingly, computing the variance of this models reveals, that the points vary less in this model:
 ```scala mdoc
 for ((id, _, _) <- newCorrespondences) {
   val cov = posteriorFixedPose.cov(id, id)
@@ -565,6 +565,10 @@ of fitting a model to an image using an Active Shape Model as a likelihood funct
  applying this method successfully. The more prior knowledge about the target distribution we can incorporate into the proposals,
  the faster will the chain converge to the equilibrium distribution.  
 
+For more complicated use-cases of this method in image analysis , we refer the interested reader is referred to the paper by S. Schönborn et al. 
+and references therein:
+
+* Schönborn, Sandro, et al. "Markov chain monte carlo for automated face image analysis." International Journal of Computer Vision 123.2 (2017): 160-183.
 
 ```scala mdoc:invisible
 ui.close()

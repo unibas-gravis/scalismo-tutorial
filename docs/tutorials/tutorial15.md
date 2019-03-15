@@ -82,10 +82,10 @@ val targetPoints = targetLms.map(l => l.point)
 ```
 
 We assume that the target points we observe are subject to
-noise, which we model as a normal distribution with $$3 mm$$ standard deviation:
+noise, which we model as a normal distribution with $$3 mm$$ standard deviation (hence $$9 mm$$ variance):
 
 ```scala
-val landmarkNoiseVariance = 9.0
+val landmarkNoiseVariance = 9.0 
 val uncertainty = MultivariateNormalDistribution(
   DenseVector.zeros[Double](3),
   DenseMatrix.eye[Double](3) * landmarkNoiseVariance
@@ -107,7 +107,7 @@ val correspondences = modelLmIds.zip(targetPoints).map(modelIdWithTargetPoint =>
 
 In this example, we want to model the posterior $$p(\theta | D)$$, where
 the parameters $$\theta =( t, r, \alpha)$$ consist of the translation parameters
-$$t=(t_x, t_y, t_z)$$, the rotation parameters $$r = (\phi, \psi, \omega)$,
+$$t=(t_x, t_y, t_z)$$, the rotation parameters $$r = (\phi, \psi, \omega)$$,
 represented as Euler angles as well a shape model coefficients $$\alpha = (\alpha_1, \ldots, \alpha_n)$$.
 
 ```scala
@@ -116,8 +116,8 @@ case class Parameters(translationParameters: EuclideanVector[_3D],
                      modelCoefficients: DenseVector[Double])
 ```
 
-As in the previous tutorial, we wrap this into a sample class, which can keep track of who has
-generated the sample. Furthermore, we will add convenience method,
+As in the previous tutorial, we wrap this into a class representing the sample, which can keep track by whom
+it was generated. Furthermore, we will add convenience method,
 which builds a ```RigidTransformation``` from the parameters. As a rigid transformation
 is not completely determined by the translation and rotation parameters, we need to
 store also the center of rotation.
@@ -147,7 +147,7 @@ As in the previous tutorial, we represent the unnormalized posterior distributio
 as the product of prior and likelihood:
 $$p(\theta | D) \propto p(\theta) p(D | \theta)$$,
 where $$D$$ denotes the data (i.e. the corresponding landmark points) and $$\theta$$
-oru parameters.
+are our parameters.
 
 As a prior over the shape parameters is given by the shape model. For the
 translation and rotation, we assume a zero-mean normal distribution:
@@ -504,7 +504,7 @@ println(logger.acceptanceRatios())
 Once we have the samples, we can now use them to analyze our fit.
 For example, we can select the best fit from these samples and visualize it
 
-```scala modc:silent
+```scala
 val bestSample = samples.maxBy(posteriorEvaluator.logValue)
 val bestFit = model.instance(bestSample.parameters.modelCoefficients).transform(bestSample.poseTransformation)
 val resultGroup = ui.createGroup("result")
@@ -543,12 +543,103 @@ For efficiency reasons, we do the computations here only for the landmark points
 
 ```scala
 val (marginalizedModel, newCorrespondences) = marginalizeModelForCorrespondences(model, correspondences)    
+// marginalizedModel: StatisticalMeshModel = StatisticalMeshModel(
+//   TriangleMesh3D(
+//     scalismo.common.UnstructuredPointsDomain3D@16b01f4d,
+//     TriangleList(Vector())
+//   ),
+//   DiscreteLowRankGaussianProcess(
+//     scalismo.common.UnstructuredPointsDomain3D@16b01f4d,
+//     DenseVector(-2.4434967041015625, 2.350008010864258, 0.442657470703125, -2.9081268310546875, 1.451995849609375, 0.908905029296875, -1.6051483154296875, 0.8872489929199219, 0.2577056884765625, -1.0640869140625, 1.5610084533691406, 1.529266357421875, 7.3378448486328125, -1.0377426147460938, -0.8446807861328125, 4.6402587890625, -1.0488052368164062, -0.2399749755859375),
+//     DenseVector(1448832.5, 366419.90625, 272218.9375, 174594.765625, 118833.6953125, 96322.5703125, 65858.7265625, 32242.50390625, 22365.66796875, 2.256714282111716E-8),
+//     -0.0020904541015625    -0.00250244140625     ... (10 total)
+// -0.00147247314453125   9.765625E-4           ...
+// 0.002288818359375      -0.00201416015625     ...
+// -0.001922607421875     -0.0016021728515625   ...
+// -9.11712646484375E-4   1.6021728515625E-4    ...
+// 0.002197265625         -0.001373291015625    ...
+// -0.0019683837890625    -0.002044677734375    ...
+// -8.029937744140625E-4  -1.52587890625E-4     ...
+// -0.0016937255859375    0.001495361328125     ...
+// -0.002166748046875     -0.00250244140625     ...
+// -9.307861328125E-4     8.335113525390625E-4  ...
+// -0.001861572265625     0.002166748046875     ...
+// -0.003875732421875     -6.103515625E-5       ...
+// 4.425048828125E-4      -7.5531005859375E-4   ...
+// 3.96728515625E-4       3.204345703125E-4     ...
+// -0.0030364990234375    -0.0048828125         ...
+// 0.00316619873046875    -3.8909912109375E-4   ...
+// 3.662109375E-4         1.52587890625E-5      ...
+//   )
+// )
+// newCorrespondences: Seq[(PointId, Point[_3D], MultivariateNormalDistribution)] = List(
+//   (
+//     PointId(0),
+//     Point3D(148.41268920898438, -5.294463634490967, 290.7681884765625),
+//     MultivariateNormalDistribution(
+//       DenseVector(0.0, 0.0, 0.0),
+//       9.0  0.0  0.0  
+// 0.0  9.0  0.0  
+// 0.0  0.0  9.0  
+//     )
+//   ),
+//   (
+//     PointId(1),
+//     Point3D(142.35382080078125, -5.664807319641113, 268.0462951660156),
+//     MultivariateNormalDistribution(
+//       DenseVector(0.0, 0.0, 0.0),
+//       9.0  0.0  0.0  
+// 0.0  9.0  0.0  
+// 0.0  0.0  9.0  
+//     )
+//   ),
+//   (
+//     PointId(2),
+//     Point3D(140.85040283203125, -5.128785610198975, 225.04928588867188),
+//     MultivariateNormalDistribution(
+//       DenseVector(0.0, 0.0, 0.0),
+//       9.0  0.0  0.0  
+// 0.0  9.0  0.0  
+// 0.0  0.0  9.0  
+//     )
+//   ),
+//   (
+//     PointId(3),
+//     Point3D(143.13357543945312, -4.769620895385742, 202.04534912109375),
+//     MultivariateNormalDistribution(
+//       DenseVector(0.0, 0.0, 0.0),
+//       9.0  0.0  0.0  
+// 0.0  9.0  0.0  
+// 0.0  0.0  9.0  
+//     )
+//   ),
+//   (
+//     PointId(4),
+//     Point3D(102.81741333007812, 32.58876037597656, 247.52294921875),
+//     MultivariateNormalDistribution(
+//       DenseVector(0.0, 0.0, 0.0),
+//       9.0  0.0  0.0  
+// 0.0  9.0  0.0  
+// 0.0  0.0  9.0  
+// ...    
 for ((id, _, _) <- newCorrespondences) {
     val meanPointPosition = computeMean(marginalizedModel, id)
     println(s"expected position for point at id $id  = $meanPointPosition")
     val cov = computeCovarianceFromSamples(marginalizedModel, id, meanPointPosition)
     println(s"posterior variance computed  for point at id (shape and pose) $id  = ${cov(0,0)}, ${cov(1,1)}, ${cov(2,2)}")
 }
+// expected position for point at id PointId(0)  = Point3D(148.10137201095068,-7.151235826279037,291.3929897650882)
+// posterior variance computed  for point at id (shape and pose) PointId(0)  = 4.254464918957609, 3.939366851939424, 3.32790002246177
+// expected position for point at id PointId(1)  = Point3D(142.24949688108646,-4.4064122402505745,266.34241057439533)
+// posterior variance computed  for point at id (shape and pose) PointId(1)  = 2.918968756161676, 2.159129807301085, 2.915190937982501
+// expected position for point at id PointId(2)  = Point3D(141.3051915247215,-4.2897512164448095,226.94538458273826)
+// posterior variance computed  for point at id (shape and pose) PointId(2)  = 2.203212589533782, 1.9443312683620244, 3.558990457373749
+// expected position for point at id PointId(3)  = Point3D(143.33662067133574,-4.885817375124605,201.61254954128444)
+// posterior variance computed  for point at id (shape and pose) PointId(3)  = 4.211176241740335, 3.5805967352101438, 3.8214742761066214
+// expected position for point at id PointId(4)  = Point3D(102.9147937651206,32.77448813851955,248.52670379739345)
+// posterior variance computed  for point at id (shape and pose) PointId(4)  = 3.670091389108584, 4.998066354925429, 3.3640625099189827
+// expected position for point at id PointId(5)  = Point3D(137.63389362946234,101.3277589516202,248.64874726494665)
+// posterior variance computed  for point at id (shape and pose) PointId(5)  = 8.479207875196545, 6.924214739937887, 5.29092402298062
 ```
 
 It is interesting to compare this posterior variance, with the variance we would have obtained by using a Gaussian process regression,
@@ -558,7 +649,7 @@ where we would have to assume the pose to be fixed:
 val posteriorFixedPose = model.posterior(correspondences.toIndexedSeq)
 ```
 
-Not surprisingly, computing the variance of this models reveals, that the points vary less in the model this model:
+Not surprisingly, computing the variance of this models reveals, that the points vary less in this model:
 
 ```scala
 for ((id, _, _) <- newCorrespondences) {
@@ -585,4 +676,9 @@ In practice, however, as a change in the likelihood function can dramatically ch
 to tune the proposals, such that good convergence can be achieved. Indeed, finding good proposal distributions is the key to
 applying this method successfully. The more prior knowledge about the target distribution we can incorporate into the proposals,
 the faster will the chain converge to the equilibrium distribution.
+
+For more complicated use-cases of this method in image analysis , we refer the interested reader is referred to the paper by S. Schönborn et al.
+and references therein:
+
+* Schönborn, Sandro, et al. "Markov chain monte carlo for automated face image analysis." International Journal of Computer Vision 123.2 (2017): 160-183.
 

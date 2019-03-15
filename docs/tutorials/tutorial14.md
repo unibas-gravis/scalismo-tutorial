@@ -15,11 +15,11 @@ with unknown mean and unknown standard deviation to a set of data points.
 In the following we will denote the unknown parameters by $$\theta$$; I.e. $$\theta = (\mu, \sigma)$$ and the observed data points
 by $$y$$. In a Bayesian setting, doing inference means that we compute the *posterior distribution* $$p(\theta | y)$$. Formally, the *posterior distribution* is defined as follows:
 
-$$p(\theta | y) = \frac{p(\theta) p(y | \theta)}{p(y)}$$.
+$$p(\theta \mid y) = \frac{p(\theta) p(y \mid \theta)}{p(y)}$$.
 
 The term $$p(y | \theta)$$ is called the likelihood function, and is
-given directly by the problem definition as $$p(y | theta) = N(\mu, \sigma)$$. The term $$p(\theta)$$ is a prior distribution over the parameters,
-which we will define later. The final term involved $$p(y)$$ is called the marginal likelihood. Formally, it can be defined as $$p(y) = \int_\theta p(y | theta) p(\theta) d\theta$$.
+given directly by the problem definition as $$p(y | \theta) = N(\mu, \sigma)$$. The term $$p(\theta)$$ is a prior distribution over the parameters,
+which we will define later. The final term involved $$p(y)$$ is called the marginal likelihood. Formally, it can be defined as $$p(y) = \int_\theta p(y | \theta) p(\theta) d\theta$$.
 Fortunately, we will never need to compute this quantity.
 
 
@@ -270,13 +270,13 @@ our data:
 
 ```scala
 val estimatedMean = samples.map(sample => sample.parameters.mu).sum  / samples.size
-// estimatedMean: Double = -7.869167078001387
+// estimatedMean: Double = -5.791574550006766
   println("estimated mean is " + estimatedMean)
-// estimated mean is -7.869167078001387
+// estimated mean is -5.791574550006766
   val estimatedSigma = samples.map(sample => sample.parameters.sigma).sum / samples.size
-// estimatedSigma: Double = 17.492224803222886
+// estimatedSigma: Double = 17.350744030639415
   println("estimated sigma is " + estimatedSigma)
-// estimated sigma is 17.492224803222886
+// estimated sigma is 17.350744030639415
 ```
 
 In the next tutorial, we see an example of how the exact same  mechanism can be used for
@@ -359,7 +359,7 @@ We can now check how often the individual samples got accepted.
 
 ```scala
 println("acceptance ratio is " +logger.acceptanceRatios())
-// acceptance ratio is Map(randomWalkProposal (3.0, 1.0) -> 0.45964691046658257, randomWalkProposal (9.0, 3.0) -> 0.14389359129383314)
+// acceptance ratio is Map(randomWalkProposal (3.0, 1.0) -> 0.45588235294117646, randomWalkProposal (9.0, 3.0) -> 0.1382316313823163)
 ```
 
 We see that the acceptance ratio of the random walk proposal, which takes the
