@@ -143,28 +143,3 @@ val finalFit = nonrigidICP( model.mean, ptIds, 20)
 ui.show(resultGroup, finalFit, "final fit")
 ```
 
-To get the corresponding points for all the points of the model to the target mesh, we can now simply
-look up the ids of the closest points point for all model points:
-
-```scala
-val correspondingPointIds = finalFit.pointSet.pointsWithId.map(fitPointWithId => {
-      val (fitPoint, modelId) = fitPointWithId
-      val correspondingPointId = targetMesh.pointSet.findClosestPoint(fitPoint).id
-      (modelId, correspondingPointId)
-    }) 
-```
-
-From these, we can build a new triangle mesh, which corresponds exactly to the target mesh, but is in correspondence
-with our model:
-
-```scala
-val newTargetPoints = correspondingPointIds.map( correspondingPointIds => {
-    val (modelId, targetPointId) = correspondingPointIds
-    targetMesh.pointSet.point(targetPointId)
-})
-
-val newTargetMesh = TriangleMesh3D(UnstructuredPointsDomain[_3D](newTargetPoints.toIndexedSeq), model.referenceMesh.triangulation)
-val newTargetMeshView = ui.show(resultGroup, newTargetMesh, "new target mesh")
- 
-```
-
