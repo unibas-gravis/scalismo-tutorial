@@ -175,14 +175,14 @@ Here is, howe we would visualize a 3D image:
  The following list shows all the scalismo objects, which can currently be visualized
  in scalismo-ui.
 
- * 3D image ( [```DiscreteScalarImage[_3D,_]```](http://unibas-gravis.github.io/scalismo/latest/api/index.html#scalismo.image.DiscreteScalarImage) )
- * 3D vector field ([```DiscreteField[_3D, Vector[_3D]]```](http://unibas-gravis.github.io/scalismo/latest/api/index.html#scalismo.common.DiscreteField))
+ * 3D image (```DiscreteScalarImage[_3D,_]```)
+ * 3D vector field (```DiscreteField[_3D, Vector[_3D]]```)
  * Point cloud (```IndexedSeq[Point[_3D]]```)
- * Landmark ([```Landmark[_3D]```](http://unibas-gravis.github.io/scalismo/latest/api/index.html#scalismo.geometry.Landmark))
- * Scalar field ([```DiscreteScalarField[_3D, _]```](http://unibas-gravis.github.io/scalismo/latest/api/index.html#scalismo.common.DiscreteScalarField))
- * Triangle mesh ([TriangleMesh[_3D]](http://unibas-gravis.github.io/scalismo/latest/api/index.html#scalismo.mesh.TriangleMesh))
- * Scalar mesh field( [```ScalarMeshField[_]```](http://unibas-gravis.github.io/scalismo/latest/api/index.html#scalismo.mesh.ScalarMeshField))
- * Line mesh ([```LineMesh[_3D]```](http://unibas-gravis.github.io/scalismo/latest/api/index.html#scalismo.mesh.LineMesh))
+ * Landmark (```Landmark[_3D]```)
+ * Scalar field (```DiscreteScalarField[_3D, _]```)
+ * Triangle mesh (```TriangleMesh[_3D]```)
+ * Scalar mesh field(```ScalarMeshField[_]```)
+ * Line mesh (```LineMesh[_3D]```)
 
 ```scala mdoc:invisible
 ui.close()
