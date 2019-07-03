@@ -137,7 +137,7 @@ reference mesh.
 ```scala
 val fixedImage = referenceMesh.operations.toDistanceImage
 val movingImage = targetMesh.operations.toDistanceImage
-val sampler = UniformMeshSampler3D(referenceMesh, numberOfPoints = 1000)
+val sampler = FixedPointsUniformMeshSampler3D(referenceMesh, numberOfPoints = 1000)
 val metric = MeanSquaresMetric(fixedImage, movingImage, transformationSpace, sampler)
 ```
 
@@ -250,7 +250,7 @@ def doRegistration(
         val transformationSpace = GaussianProcessTransformationSpace(lowRankGP)
         val fixedImage = referenceMesh.operations.toDistanceImage
         val movingImage = targetMesh.operations.toDistanceImage
-        val sampler = UniformMeshSampler3D(
+        val sampler = FixedPointsUniformMeshSampler3D(
             referenceMesh,
             registrationParameters.numberOfSampledPoints
             )
